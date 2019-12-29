@@ -61,10 +61,9 @@ MainLoop:
 	bsr	WaitBlitter
 
 	; do stuff here :)
-	BSR.W	PRINT_2X
-	;BSR.W	PRINT_BG
+	BSR.W	PRINT2X
+	MOVE.L	#BFRKNY,DrawBuffer
 	MOVE.L	#KONEYBG,DrawBuffer
-
 	;*--- main loop end ---*
 	;move.w	#$323,$180(a6)	;show rastertime left down to $12c
 	btst	#6,$bfe001	;Left mouse button not pressed?
@@ -105,20 +104,26 @@ VBint:				;Blank template VERTB interrupt
 .notvb:	movem.l	(sp)+,d0/a6	;restore
 	rte
 
-PRINT_2X:				; Routine che stampa
-	MOVEM.L	D0-D7/A1,-(SP)	; SAVE TO STACK
+PRINT2X:			; Routine che stampa
+	MOVEM.L	D1/D6/A4/A5,-(SP)	; SAVE TO STACK
+	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
+	MOVE.L	#BFRKNY,A4
+.OUTERLOOP:
 	MOVE.L	#KONEY2X,A5
 	MOVEQ	#0,D6		; RESET D6
 	MOVE.B	#9,D6			
-	ADD.W	#4600,A1		; POSITIONING
-.LOOP:				; LOOP KE CICLA LA BITMAP
-	ADD.W	#13,A1		; POSITIONING
-	MOVE.L	(A5)+,(A1)	; QUESTA ISTRUZIONE FA ESPLODERE TUTTO
-	ADD.W	#4,A1		; POSITIONING
-	MOVE.L	(A5)+,(A1)	; QUESTA ISTRUZIONE FA ESPLODERE TUTTO
-	ADD.W	#23,A1		; POSITIONING
-	DBRA	D6,.LOOP
-	MOVEM.L	(SP)+,D0-D7/A1	; FETCH FROM STACK
+	ADD.W	#4600,A4		; POSITIONING
+.INNERLOOP:				; LOOP KE CICLA LA BITMAP
+	ADD.W	#13,A4		; POSITIONING
+	MOVE.L	(A5)+,(A4)	; QUESTA ISTRUZIONE FA ESPLODERE TUTTO
+	ADD.W	#4,A4		; POSITIONING
+	MOVE.L	(A5)+,(A4)	; QUESTA ISTRUZIONE FA ESPLODERE TUTTO
+	ADD.W	#23,A4		; POSITIONING
+	DBRA	D6,.INNERLOOP
+	ADD.W	#5240,A4		; POSITIONING
+	;MOVE.W	#%1010101010101010,(A4); SHOW FINAL POSITIONING
+	DBF	D1,.OUTERLOOP
+	MOVEM.L	(SP)+,D1/D6/A4/A5	; FETCH FROM STACK
 	RTS
 
 ;********** Fastmem Data **********
@@ -130,9 +135,11 @@ ViewBuffer:	dc.l Screen1
 ;*******************************************************************************
 
 KONEYBG:
-	INCBIN	"ditherkoneybg320256.raw"	; qua carichiamo la figura in RAW,
+	INCBIN	"dithermirrorbg.raw"	; qua carichiamo la figura in RAW,
 KONEY2X:
 	INCBIN	"koney10x64.raw"	
+BFRKNY:	DS.B h*bwid	;I need a buffer to center KONEY
+
 Copper:
 	DC.W $1FC,0	;Slow fetch mode, remove if AGA demo.
 	DC.W $8E,$2C81	;238h display window top, left
@@ -173,7 +180,7 @@ CopperE:
 	SECTION ChipBuffers,BSS_C	;BSS doesn't count toward exe size
 ;*******************************************************************************
 
-Screen1:	ds.b h*bwid		;Define storage for buffer 1
-Screen2:	ds.b h*bwid		;two buffers
+Screen1:	DS.B h*bwid		;Define storage for buffer 1
+Screen2:	DS.B h*bwid		;two buffers
 
 	END
