@@ -8,7 +8,7 @@
 
 w=320				;screen width, height, depth
 h=256
-bpls=3				;handy values:
+bpls=1				;handy values:
 bpl=w/16*2			;byte-width of 1 bitplane line
 bwid=bpls*bpl			;byte-width of 1 pixel line (all bpls)
 
