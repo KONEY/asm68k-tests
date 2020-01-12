@@ -8,14 +8,15 @@
 w=320		;screen width, height, depth
 h=256
 bpls=3		;handy values:
-bpl=w/16*2	;byte-width of 1 bitplane line
+bpl=w/16*2	;byte-width of 1 bitplane line (40)
 bwid=bpls*bpl	;byte-width of 1 pixel line (all bpls)
 
-POS_TOP=126*bpl
+POS_TOP=124*bpl
 POS_LEFT=15
 POS_MID=4
 POS_RIGHT=21
-POS_BOTTOM=120*bpl
+POS_BOTTOM=122*bpl
+BAND_OFFSET=86*bpl
 
 ;********** Macros **********
 
@@ -48,6 +49,7 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	move.l	#Copper,$80(a6)
 	MOVEQ	#0,D7		;INDICE PER TABELLA
 	BSR	CREAPATCH		; FILL THE BUFFER
+	BSR	CREATESCROLLSPACE
 
 ;********************  main loop  ********************
 MainLoop:
@@ -71,7 +73,7 @@ MainLoop:
 	; do stuff here :)
 	BSR.W	PRINT2X
 	MOVE.L	#KONEYBG,DrawBuffer
-	;MOVE.L	#KONEYBG,DrawBuffer
+	bsr.w	MuoviCopper	; fa scorrere la figura in alto e in basso
 	;*--- main loop end ---*
 	;move.w	#$323,$180(a6)	;show rastertime left down to $12c
 	btst	#6,$bfe001	;Left mouse button not pressed?
@@ -113,8 +115,9 @@ VBint:				;Blank template VERTB interrupt
 	rte
 
 PRINT2X:
-	MOVEM.L	D0-D3/D5/D6/A0-A6,-(SP)	; SAVE TO STACK
+	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
 	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
+	MOVE.L	TABINDEX,D7
 	LEA	KONEYBG,A4
 	LEA	DISPLACETABLE,A3
 	LEA	PATCH,A0
@@ -145,11 +148,12 @@ PRINT2X:
 	DBRA	D6,.INNERLOOP
 	ADD.W	#POS_BOTTOM,A4	; POSITIONING
 	DBF	D1,.OUTERLOOP
-	MOVEM.L	(SP)+,D0-D3/D5/D6/A0-A6	; FETCH FROM STACK
+	MOVE.L	D7,TABINDEX
+	MOVEM.L	(SP)+,D0-D7/A0-A6	; FETCH FROM STACK
 	RTS
 
 CREAPATCH:
-	MOVEM.L	D0-D3/D5/D6/A0-A6,-(SP)	; SAVE TO STACK
+	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
 	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
 	LEA	KONEYBG,A4
 	LEA	PATCH,A5
@@ -166,21 +170,70 @@ CREAPATCH:
 	DBRA	D6,.INNERLOOP
 	ADD.W	#POS_BOTTOM,A4	; POSITIONING
 	DBF	D1,.OUTERLOOP
-	MOVEM.L	(SP)+,D0-D3/D5/D6/A0-A6	; FETCH FROM STACK
+	MOVEM.L	(SP)+,D0-D7/A0-A6	; FETCH FROM STACK
 	RTS
 
-;********** Fastmem Data **********
-DrawBuffer:	dc.l Screen2	;pointers to buffers to be swapped
-ViewBuffer:	dc.l Screen1
+CREATESCROLLSPACE:
+	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
+	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
+	LEA	KONEYBG,A4
+.OUTERLOOP:
+	MOVEQ	#0,D6		; RESET D6
+	MOVE.B	#10*11-1,D6			
+	ADD.W	#POS_TOP+BAND_OFFSET,A4	; POSITIONING
+.INNERLOOP:				; LOOP KE CICLA LA BITMAP
+	MOVE.L	#0,(A4)+			; QUESTA ISTRUZIONE FA ESPLODERE TUTTO
+	DBRA	D6,.INNERLOOP
+	ADD.W	#POS_BOTTOM-BAND_OFFSET-bpl,A4	; POSITIONING
+	DBF	D1,.OUTERLOOP
+	MOVEM.L	(SP)+,D0-D7/A0-A6	; FETCH FROM STACK
+	RTS
 
+MuoviCopper:
+	TST.B	FLAG		; Dobbiamo avanzare o indietreggiare? se
+				; FLAG e' azzerata, (cioe' il TST verifica il
+				; BEQ)
+				; allora saltiamo a AVANTI, se invece e' a $FF
+				; (se cioe' questo TST non e' verificato)
+				; continuiamo indietreggiando (con dei sub)
+	beq.w	AVANTI
+	cmpi.b	#$00,MIOCON1	; siamo arrivati alla posizione normale, ossia
+				; tutto indietro?
+	beq.s	MettiAvanti	; se si, dobbiamo avanzare!
+	sub.b	#$10,MIOCON1	; sottraiamo 1 allo scroll dei bitplanes
+	rts			; dispari ($ff,$ee,$dd,$cc,$bb,$aa,$99....)
+				; andando a SINISTRA
+MettiAvanti:
+	clr.b	FLAG		; Azzerando FLAG, al TST.B FLAG il BEQ
+	rts			; fara' saltare alla routine AVANTI, e
+				; la figura avanzera' (verso destra)
+AVANTI:
+	cmpi.b	#$10,MIOCON1	; siamo arrivati allo scroll massimo in
+				; avanti, ossia $FF? ($f pari e $f dispari)
+	beq.s	MettiIndietro	; se si, siamo dobbiamo tornare indietro
+	add.b	#$10,MIOCON1	; aggiungiamo 1 allo scroll dei bitplanes
+				; pari e dispari ($11,$22,$33,$44 etc..)
+	rts			; ANDANDO A DESTRA
+
+MettiIndietro:
+	move.b	#$ff,FLAG		; Quando la label FLAG non e' a zero,
+	rts			; significa che dobbiamo indietreggiare
+
+;********** Fastmem Data **********
+DrawBuffer:	DC.L SCREEN2	;pointers to buffers to be swapped
+ViewBuffer:	DC.L SCREEN1
+FLAG:		DC.B 0,0		; Questo byte, indicato dalla label SuGiu, e' un FLAG.
+TABINDEX:		DC.L 0
+PATCH:		DS.B 10*64*bpls	;I need a buffer to save trap BG
 ;*******************************************************************************
 	SECTION ChipData,DATA_C	;declared data that must be in chipmem
 ;*******************************************************************************
 
 KONEYBG:
-	INCBIN	"dithermirrorbg_2.raw"
+	INCBIN	"dithermirrorbg_3.raw"
+	dcb.b	40*30,0	; vedi sopra
 	;INCBIN	"glitchbg320256_3.raw"
-PATCH:	DS.B 10*64*bpls	;I need a buffer to save trap BG
+	;DS.B h*bwid	
 KONEY2X:
 	INCBIN	"koney10x64.raw"
 DISPLACETABLE:
@@ -203,11 +256,15 @@ Copper:
 	DC.W $108,0	;bwid-bpl	;modulos
 	DC.W $10A,0	;bwid-bpl	;RISULTATO = 80 ?
 
-	dc.w $102,0	;Scroll register (and playfield pri)
+	DC.W $102,0	;SCROLL REGISTER (AND PLAYFIELD PRI)
+	DC.W $102		; BPLCON1 - IL REGISTRO
+	DC.B $00		; BPLCON1 - IL BYTE NON UTILIZZATO!!!
+MIOCON1:
+	DC.B $00		; BPLCON1 - IL BYTE UTILIZZATO!!!
 
 Palette:			;Some kind of palette (3 bpls=8 colors)
-	DC.W $0180,$0111,$0182,$0333,$0184,$0444,$0186,$0555
-	DC.W $0188,$0777,$018A,$0888,$018C,$0AAA,$018E,$0FFF
+	DC.W $0180,$0000,$0182,$0333,$0184,$0444,$0186,$0555
+	DC.W $0188,$0666,$018A,$0777,$018C,$0888,$018E,$0FFF
 
 BplPtrs:
 	dc.w $e0,0
@@ -224,7 +281,18 @@ BplPtrs:
 	dc.w $f6,0		;full 6 ptrs, in case you increase bpls
 	dc.w $100,bpls*$1000+$200	;enable bitplanes
 
+	DC.W $FE07,$FFFE
+	DC.W $0180,$0FFF
+	DC.W $FF07,$FFFE
+	DC.W $0180,$0000
+
 	dc.w $ffdf,$fffe		;allow VPOS>$ff
+
+	DC.W $0807,$FFFE
+	DC.W $0180,$0FFF
+	DC.W $0907,$FFFE
+	DC.W $0180,$0000
+
 	dc.w $ffff,$fffe		;magic value to end copperlist
 
 CopperE:

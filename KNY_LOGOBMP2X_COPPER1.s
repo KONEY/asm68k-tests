@@ -8,14 +8,15 @@
 w=320		;screen width, height, depth
 h=256
 bpls=3		;handy values:
-bpl=w/16*2	;byte-width of 1 bitplane line
+bpl=w/16*2	;byte-width of 1 bitplane line (40)
 bwid=bpls*bpl	;byte-width of 1 pixel line (all bpls)
 
-POS_TOP=126*bpl
+POS_TOP=124*bpl
 POS_LEFT=15
 POS_MID=4
 POS_RIGHT=21
-POS_BOTTOM=120*bpl
+POS_BOTTOM=122*bpl
+BAND_OFFSET=86*bpl
 
 ;********** Macros **********
 
@@ -48,6 +49,7 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	move.l	#Copper,$80(a6)
 	MOVEQ	#0,D7		;INDICE PER TABELLA
 	BSR	CREAPATCH		; FILL THE BUFFER
+	BSR	CREATESCROLLSPACE
 
 ;********************  main loop  ********************
 MainLoop:
@@ -71,7 +73,6 @@ MainLoop:
 	; do stuff here :)
 	BSR.W	PRINT2X
 	MOVE.L	#KONEYBG,DrawBuffer
-	;MOVE.L	#KONEYBG,DrawBuffer
 	;*--- main loop end ---*
 	;move.w	#$323,$180(a6)	;show rastertime left down to $12c
 	btst	#6,$bfe001	;Left mouse button not pressed?
@@ -113,8 +114,9 @@ VBint:				;Blank template VERTB interrupt
 	rte
 
 PRINT2X:
-	MOVEM.L	D0-D3/D5/D6/A0-A6,-(SP)	; SAVE TO STACK
+	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
 	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
+	MOVE.L	DISPLACEINDEX,D7
 	LEA	KONEYBG,A4
 	LEA	DISPLACETABLE,A3
 	LEA	PATCH,A0
@@ -145,11 +147,12 @@ PRINT2X:
 	DBRA	D6,.INNERLOOP
 	ADD.W	#POS_BOTTOM,A4	; POSITIONING
 	DBF	D1,.OUTERLOOP
-	MOVEM.L	(SP)+,D0-D3/D5/D6/A0-A6	; FETCH FROM STACK
+	MOVE.L	D7,DISPLACEINDEX
+	MOVEM.L	(SP)+,D0-D7/A0-A6	; FETCH FROM STACK
 	RTS
 
 CREAPATCH:
-	MOVEM.L	D0-D3/D5/D6/A0-A6,-(SP)	; SAVE TO STACK
+	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
 	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
 	LEA	KONEYBG,A4
 	LEA	PATCH,A5
@@ -166,23 +169,31 @@ CREAPATCH:
 	DBRA	D6,.INNERLOOP
 	ADD.W	#POS_BOTTOM,A4	; POSITIONING
 	DBF	D1,.OUTERLOOP
-	MOVEM.L	(SP)+,D0-D3/D5/D6/A0-A6	; FETCH FROM STACK
+	MOVEM.L	(SP)+,D0-D7/A0-A6	; FETCH FROM STACK
 	RTS
 
+CREATESCROLLSPACE:
+	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
+	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
+	LEA	KONEYBG,A4
+.OUTERLOOP:
+	MOVEQ	#0,D6		; RESET D6
+	MOVE.B	#10*11-1,D6			
+	ADD.W	#POS_TOP+BAND_OFFSET,A4	; POSITIONING
+.INNERLOOP:				; LOOP KE CICLA LA BITMAP
+	MOVE.L	#0,(A4)+			; QUESTA ISTRUZIONE FA ESPLODERE TUTTO
+	DBRA	D6,.INNERLOOP
+	ADD.W	#POS_BOTTOM-BAND_OFFSET-bpl,A4	; POSITIONING
+	DBF	D1,.OUTERLOOP
+	MOVEM.L	(SP)+,D0-D7/A0-A6	; FETCH FROM STACK
+	RTS
+
+;CYCLEPALETTE
+
 ;********** Fastmem Data **********
-DrawBuffer:	dc.l Screen2	;pointers to buffers to be swapped
-ViewBuffer:	dc.l Screen1
-
-;*******************************************************************************
-	SECTION ChipData,DATA_C	;declared data that must be in chipmem
-;*******************************************************************************
-
-KONEYBG:
-	INCBIN	"dithermirrorbg_2.raw"
-	;INCBIN	"glitchbg320256_3.raw"
-PATCH:	DS.B 10*64*bpls	;I need a buffer to save trap BG
-KONEY2X:
-	INCBIN	"koney10x64.raw"
+DrawBuffer:	DC.L SCREEN2	;pointers to buffers to be swapped
+ViewBuffer:	DC.L SCREEN1
+DISPLACEINDEX:	DC.L 0
 DISPLACETABLE:
 	DC.W 0,0,0,2,0,0,0,0,0,2,0,3,0,0,6,1
 	DC.W 0,0,0,3,0,0,0,0,3,0,0,7,0,0,0,0
@@ -192,6 +203,17 @@ DISPLACETABLE:
 	DC.W 2,1,0,1,0,3,0,3,0,0,0,1,2,1,0,0
 	DC.W 0,0,0,0,3,0,0,0,0,1,0,0,0,2,1,0
 	DC.W 1,3,0,2,0,0,0,3,2,0,4,0,1,0,7,0
+PATCH:	DS.B 10*64*bpls	;I need a buffer to save trap BG
+KONEY2X:
+	INCBIN	"koney10x64.raw"
+;*******************************************************************************
+	SECTION ChipData,DATA_C	;declared data that must be in chipmem
+;*******************************************************************************
+
+KONEYBG:
+	INCBIN	"dithermirrorbg_3.raw"
+	;INCBIN	"glitchbg320256_3.raw"
+	;DS.B h*bwid	
 Copper:
 	DC.W $1FC,0	;Slow fetch mode, remove if AGA demo.
 	DC.W $8E,$2C81	;238h display window top, left
@@ -203,11 +225,17 @@ Copper:
 	DC.W $108,0	;bwid-bpl	;modulos
 	DC.W $10A,0	;bwid-bpl	;RISULTATO = 80 ?
 
-	dc.w $102,0	;Scroll register (and playfield pri)
+	DC.W $102,0	;SCROLL REGISTER (AND PLAYFIELD PRI)
 
 Palette:			;Some kind of palette (3 bpls=8 colors)
-	DC.W $0180,$0111,$0182,$0333,$0184,$0444,$0186,$0555
-	DC.W $0188,$0777,$018A,$0888,$018C,$0AAA,$018E,$0FFF
+	DC.W $0180,$0000
+	DC.W $0182,$0333
+	DC.W $0184,$0444
+	DC.W $0186,$0555
+	DC.W $0188,$0666
+	DC.W $018A,$0777
+	DC.W $018C,$0888
+	DC.W $018E,$0FFF
 
 BplPtrs:
 	dc.w $e0,0
@@ -224,7 +252,18 @@ BplPtrs:
 	dc.w $f6,0		;full 6 ptrs, in case you increase bpls
 	dc.w $100,bpls*$1000+$200	;enable bitplanes
 
+	DC.W $FE07,$FFFE
+	DC.W $0180,$0FFF
+	DC.W $FF07,$FFFE
+	DC.W $0180,$0000
+
 	dc.w $ffdf,$fffe		;allow VPOS>$ff
+
+	DC.W $0807,$FFFE
+	DC.W $0180,$0FFF
+	DC.W $0907,$FFFE
+	DC.W $0180,$0000
+
 	dc.w $ffff,$fffe		;magic value to end copperlist
 
 CopperE:

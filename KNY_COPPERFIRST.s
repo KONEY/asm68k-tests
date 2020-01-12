@@ -242,7 +242,6 @@ WAITRAS2:
 	DC.W $7F07,$FFFE
 	DC.W $180,$333
 
-
 BplPtrs:
 	DC.W $E0,0
 	DC.W $E2,0
