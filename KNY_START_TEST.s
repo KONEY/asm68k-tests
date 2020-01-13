@@ -1,6 +1,6 @@
-*** MiniStartup by Photon ***
+;*** MiniStartup by Photon ***
 	INCLUDE "PhotonsMiniWrapper1.04!.S"
-********** Constants **********
+;********** Constants **********
 
 	;INCLUDE "Blitter-Register-List.S"	;use if you like ;)
 
@@ -10,7 +10,7 @@ bpls=1					;handy values:
 bpl=w/16*2				;byte-width of 1 bitplane line
 bwid	=bpls*bpl			;byte-width of 1 pixel line (all bpls)
 
-********** Macros **********
+;********** Macros **********
 
 WAITBLIT:macro
 	tst.w (a6)			;for compatibility with A1000
@@ -19,7 +19,7 @@ WAITBLIT:macro
 	bne.s .wb\@
 	endm
 
-********** Demo **********		;Demo-specific non-startup code below.
+;********** Demo **********		;Demo-specific non-startup code below.
 
 Demo:					;a4=VBR, a6=Custom Registers Base addr
 	*--- init ---*
@@ -41,7 +41,7 @@ Demo:					;a4=VBR, a6=Custom Registers Base addr
 
 	move.l #Copper,$80(a6)
 
-********************  main loop  ********************
+;********************  main loop  ********************
 MainLoop:
 	lea		Screen,a1			;Then, the screen
 	bsr.s	ClearScreen		;clear, Yoda pls.
@@ -73,7 +73,7 @@ MainLoop:
 	*--- exit ---*
 	rts
 
-********** Demo Routines **********
+;********** Demo Routines **********
 
 PokePtrs:				;Generic, poke ptrs into copper list
 .bpll:	
@@ -107,7 +107,7 @@ VBint:						;Blank template VERTB interrupt
 	movem.l	(sp)+,d0/a6		;restore
 	rte
 
-********** Fastmem Data **********
+;********** Fastmem Data **********
 ;DrawBuffer:	dc.l Screen2		;pointers to buffers to be swapped
 ;ViewBuffer:	dc.l Screen
 
@@ -126,16 +126,16 @@ LOOP:		;LOOP KE CICLA LA BITMAP
 	SUB.W	#40*115,A1		; POSITIONING
 	RTS
 
-*******************************************************************************
+;*******************************************************************************
 	SECTION ChipData,DATA_C		;declared data that must be in chipmem
-*******************************************************************************
+;*******************************************************************************
 
 KONEY:
-	DC.L	%10001011111011111011111011011000
-	DC.L	%10010010001010001010000001110000
-	DC.L	%11100011001011001011111000100000
-	DC.L	%11010011001011001011000000110000
-	DC.L	%11001011111011001011111000110000
+	DC.L %10001011111011111011111011011000
+	DC.L %10010010001010001010000001110000
+	DC.L %11100011001011001011111000100000
+	DC.L %11010011001011001011000000110000
+	DC.L %11001011111011001011111000110000
 
 Copper:
 	dc.w $1fc,0			;Slow fetch mode, remove if AGA demo.
@@ -145,8 +145,8 @@ Copper:
 	dc.w $94,$d0			;and stop for standard screen.
 
 	dc.w $106,$0c00		;(AGA compat. if any Dual Playf. mode)
-	DC.W	$108,0		; Bpl1Mod
-	DC.W	$10A,0		; Bpl2Mod
+	DC.W $108,0		; Bpl1Mod
+	DC.W $10A,0		; Bpl2Mod
 
 	;dc.w $102,0			;Scroll register (and playfield pri)
 
@@ -179,9 +179,9 @@ BplPtrs:
 	dc.w $ffff,$fffe				;magic value to end copperlist
 
 CopperE:
-*******************************************************************************
+;*******************************************************************************
 	SECTION ChipBuffers,BSS_C	;BSS doesn't count toward exe size
-*******************************************************************************
+;*******************************************************************************
 
 Screen:	ds.b h*bwid				;Define storage for buffer 1
 Screen2:	ds.b h*bwid				;two buffers

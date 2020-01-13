@@ -12,9 +12,9 @@ bpl=w/16*2	;byte-width of 1 bitplane line (40)
 bwid=bpls*bpl	;byte-width of 1 pixel line (all bpls)
 
 POS_TOP=124*bpl
-POS_LEFT=15
+POS_LEFT=16
 POS_MID=4
-POS_RIGHT=21
+POS_RIGHT=20
 POS_BOTTOM=122*bpl
 BAND_OFFSET=86*bpl
 

@@ -1,4 +1,3 @@
-;APSFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 	;	LOGO KONEY FATTO IN BITMAP + ANIMAZIONE	
 
 	SECTION	CiriCop,CODE
@@ -10,9 +9,9 @@ Inizio:
 	CLR	D6		; CLEAR D6 FOR LOOP
 	;MOVE.B	#6,D6		; PUT FONT HEIGHT IN D6 FOR LATER LOOP
 	move.l	4.w,a6		; Execbase in a6
-	jsr	-$78(a6)	; Disable - ferma il multitasking
+	jsr	-$78(a6)		; Disable - ferma il multitasking
 	lea	GfxName(PC),a1	; Indirizzo del nome della lib da aprire in a1
-	jsr	-$198(a6)	; OpenLibrary
+	jsr	-$198(a6)		; OpenLibrary
 	move.l	d0,GfxBase	; salvo l'indirizzo base GFX in GfxBase
 	move.l	d0,a6
 	move.l	$26(a6),OldCop	; salviamo l'indirizzo della copperlist vecchia
@@ -76,9 +75,9 @@ PRINT:
 	ADD.W	#40*115,A3	; POSITIONING
 
 LOOP:				; LOOP KE CICLA LA BITMAP
-	ADD.W	#15,A3
+	ADD.W	#16,A3
 	MOVE.L	(A2)+,(A3)	
-	ADD.W	#25,A3
+	ADD.W	#24,A3
 	DBRA	D6,LOOP
 
 	RTS

@@ -1,6 +1,6 @@
-*** MiniStartup by Photon ***
+;*** MiniStartup by Photon ***
 	INCLUDE "PhotonsMiniWrapper1.04!.S"
-********** Constants **********
+;********** Constants **********
 
 	;INCLUDE "Blitter-Register-List.S"	;use if you like ;)
 
@@ -10,7 +10,7 @@ bpls=1					;handy values:
 bpl=w/16*2				;byte-width of 1 bitplane line
 bwid	=bpls*bpl			;byte-width of 1 pixel line (all bpls)
 
-********** Macros **********
+;********** Macros **********
 
 WAITBLIT:macro
 	tst.w (a6)			;for compatibility with A1000
@@ -19,7 +19,7 @@ WAITBLIT:macro
 	bne.s .wb\@
 	endm
 
-********** Demo **********		;Demo-specific non-startup code below.
+;********** Demo **********		;Demo-specific non-startup code below.
 
 Demo:					;a4=VBR, a6=Custom Registers Base addr
 	*--- init ---*
@@ -43,7 +43,7 @@ Demo:					;a4=VBR, a6=Custom Registers Base addr
 
 	bsr.s	DBLBMP
 
-********************  main loop  ********************
+;********************  main loop  ********************
 MainLoop:
 	lea		Screen,a1		;Then, the screen
 	bsr.s	ClearScreen		;clear, Yoda pls.
@@ -74,7 +74,7 @@ MainLoop:
 	*--- exit ---*
 	rts
 
-********** Demo Routines **********
+;********** Demo Routines **********
 
 PokePtrs:				;Generic, poke ptrs into copper list
 .bpll:	
@@ -108,7 +108,7 @@ VBint:						;Blank template VERTB interrupt
 	movem.l	(sp)+,d0/a6		;restore
 	rte
 
-********** Fastmem Data **********
+;********** Fastmem Data **********
 ;DrawBuffer:	dc.l Screen2		;pointers to buffers to be swapped
 ;ViewBuffer:	dc.l Screen
 
@@ -177,9 +177,9 @@ LOOP:						;LOOP KE CICLA LA BITMAP
 	DBRA	D6,LOOP
 	RTS
 
-*******************************************************************************
+;*******************************************************************************
 	SECTION ChipData,DATA_C		;declared data that must be in chipmem
-*******************************************************************************
+;*******************************************************************************
 
 KONEY:
 	;DC.L	%10101010011000000000000000000001	; TEST
@@ -235,9 +235,9 @@ BplPtrs:
 	dc.w $ffff,$fffe				;magic value to end copperlist
 
 CopperE:
-*******************************************************************************
+;*******************************************************************************
 	SECTION ChipBuffers,BSS_C		;BSS doesn't count toward exe size
-*******************************************************************************
+;*******************************************************************************
 
 Screen:	ds.b h*bwid				;Define storage for buffer 1
 Screen2:	ds.b h*bwid				;two buffers
