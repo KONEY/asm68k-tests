@@ -1,10 +1,12 @@
+;*** Very first test with BLITTER. I'll try to blank my scroll area with the blitter
+;*** From now exit is with RMB which makes more sense to me :)
+
 ;*** MiniStartup by Photon ***
 	INCDIR	"NAS:AMIGA/CODE/KONEY/"
 	INCLUDE	"PhotonsMiniWrapper1.04!.S"
+	INCLUDE	"Blitter-Register-List.S"	;use if you like ;)
+
 ;********** Constants **********
-
-;	INCLUDE "Blitter-Register-List.S"	;use if you like ;)
-
 w=320		;screen width, height, depth
 h=256
 bpls=3		;handy values:
@@ -18,8 +20,16 @@ POS_RIGHT=20
 POS_BOTTOM=122*bpl
 BAND_OFFSET=86*bpl
 
-;********** Macros **********
+;BLITTER CONSTANTS
+bltx	=0
+blty	=30
+bltoffs	=210*(w/8)+bltx/8
 
+blth	=11
+bltw	=320/16
+bltskip	=(320-320)/8
+
+;********** Macros **********
 WAITBLIT:	macro
 	tst.w	(a6)	;for compatibility with A1000
 .wb\@:	btst	#6,2(a6)
@@ -48,8 +58,8 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 
 	move.l	#Copper,$80(a6)
 	MOVEQ	#0,D7		;INDICE PER TABELLA
-	BSR	CREAPATCH		; FILL THE BUFFER
-	BSR	CREATESCROLLSPACE
+	BSR	CREAPATCH		;FILL THE BUFFER
+	BSR	CREATESCROLLSPACE	;NOW WE USE THE BLITTER HERE!
 
 ;********************  main loop  ********************
 MainLoop:
@@ -73,10 +83,10 @@ MainLoop:
 	; do stuff here :)
 	BSR.W	PRINT2X
 	MOVE.L	#KONEYBG,DrawBuffer
-	BSR.W	CYCLEPALETTE
+	;BSR.W	CYCLEPALETTE
 	;*--- main loop end ---*
 	;move.w	#$323,$180(a6)	;show rastertime left down to $12c
-	btst	#6,$bfe001	;Left mouse button not pressed?
+	BTST	#2,$DFF016	;POTINP - RMB pressed?
 	bne.w	MainLoop		;then loop
 	;*--- exit ---*
 	rts
@@ -177,15 +187,18 @@ CREATESCROLLSPACE:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
 	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
 	LEA	KONEYBG,A4
-.OUTERLOOP:
-	MOVEQ	#0,D6		; RESET D6
-	MOVE.B	#10*11-1,D6			
-	ADD.W	#POS_TOP+BAND_OFFSET,A4	; POSITIONING
-.INNERLOOP:			; LOOP KE CICLA LA BITMAP
-	MOVE.L	#0,(A4)+			; QUESTA ISTRUZIONE FA ESPLODERE TUTTO
-	DBRA	D6,.INNERLOOP
-	ADD.W	#POS_BOTTOM-BAND_OFFSET-bpl,A4	; POSITIONING
-	DBF	D1,.OUTERLOOP
+
+	MOVE.W	#$8040,DMACON	;enable blitter DMA
+	TST	DMACONR		;for compatibility
+	MOVE.L	#$01000000,BLTCON0
+.LOOP:
+	ADD.W	#bltoffs,A4
+	MOVE.L	A4,BLTDPTH
+	MOVE.W	#bltskip,BLTDMOD
+	MOVE.W	#blth*64+bltw,BLTSIZE
+	SUB.W	#bltoffs,A4
+	ADD.W	#bpl*h,A4
+	DBF	D1,.LOOP
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
@@ -231,7 +244,7 @@ COLORSTABLE:
 BUFFEREDCOLOR:	DC.W $0000
 BPLCOLORINDEX:	DC.W 6
 
-PATCH:	DS.B 10*64*bpls	;I need a buffer to save trap BG
+PATCH:		DS.B 10*64*bpls	;I need a buffer to save trap BG
 KONEY2X:
 	INCBIN	"koney10x64.raw"
 ;*******************************************************************************
@@ -299,7 +312,7 @@ CopperE:
 	SECTION ChipBuffers,BSS_C	;BSS doesn't count toward exe size
 ;*******************************************************************************
 
-Screen1:	DS.B h*bwid		;Define storage for buffer 1
-Screen2:	DS.B h*bwid		;two buffers
+SCREEN1:	DS.B h*bwid		;Define storage for buffer 1
+SCREEN2:	DS.B h*bwid		;two buffers
 
 	END
