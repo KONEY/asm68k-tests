@@ -57,9 +57,10 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	bsr.w	PokePtrs
 
 	move.l	#Copper,$80(a6)
-	MOVEQ	#0,D7		;INDICE PER TABELLA
-	BSR	CREAPATCH		;FILL THE BUFFER
-	BSR	CREATESCROLLSPACE	;NOW WE USE THE BLITTER HERE!
+	MOVEQ	#0,D7		; INDICE PER TABELLA
+	BSR	CREAPATCH		; FILL THE BUFFER
+	BSR	CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
+	BSR	BLITINPLACE	; FIRST BLITTATA
 
 ;********************  main loop  ********************
 MainLoop:
@@ -104,7 +105,7 @@ PokePtrs:
 	dbf	d1,.bpll
 	rts
 
-ClearScreen:			;a1=screen destination address to clear
+ClearScreen:			; a1=screen destination address to clear
 	bsr	WaitBlitter
 	clr.w	$66(a6)		;destination modulo
 	move.l	#$01000000,$40(a6)	;set operation type in BLTCON0/1
@@ -112,7 +113,7 @@ ClearScreen:			;a1=screen destination address to clear
 	move.w	#h*bpls*64+bpl/2,$58(a6)	;blitter operation size
 	rts
 
-VBint:				;Blank template VERTB interrupt
+VBint:				; Blank template VERTB interrupt
 	movem.l	d0/a6,-(sp)	;Save used registers
 	lea	$dff000,a6
 	btst	#5,$1f(a6)	;check if it's our vertb int.
@@ -121,7 +122,7 @@ VBint:				;Blank template VERTB interrupt
 	moveq	#$20,d0		;poll irq bit
 	move.w	d0,$9c(a6)
 	move.w	d0,$9c(a6)
-.notvb:	movem.l	(sp)+,d0/a6	;restore
+.notvb:	movem.l	(sp)+,d0/a6	; restore
 	rte
 
 PRINT2X:
@@ -188,8 +189,8 @@ CREATESCROLLSPACE:
 	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
 	LEA	KONEYBG,A4
 
-	MOVE.W	#$8040,DMACON	;enable blitter DMA
-	TST	DMACONR		;for compatibility
+	MOVE.W	#$8040,DMACON	; enable blitter DMA
+	TST	DMACONR		; for compatibility
 	MOVE.L	#$01000000,BLTCON0
 .LOOP:
 	ADD.W	#bltoffs,A4
@@ -199,6 +200,41 @@ CREATESCROLLSPACE:
 	SUB.W	#bltoffs,A4
 	ADD.W	#bpl*h,A4
 	DBF	D1,.LOOP
+	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
+	RTS
+
+BLITINPLACE:
+	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
+	LEA	KONEYBG,A4
+	ADD.W	#bltoffs+40,A4
+	MOVE.L	A4,BLTDPTH
+
+	MOVE.W	#$8040,DMACON	; enable blitter DMA
+	TST	DMACONR		; for compatibility
+
+	move.w	#$ffff,BLTAFWM	; BLTAFWM lo spiegheremo dopo
+	move.w	#$ffff,BLTALWM	; BLTALWM lo spiegheremo dopo
+	move.w	#$09f0,BLTCON0	; BLTCON0 (usa A+D)
+	move.w	#$0000,BLTCON1	; BLTCON1 lo spiegheremo dopo
+	move.w	#0,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
+				; sorgente ha le righe consecutive
+				; in memoria.
+
+	MOVE.W	#(w-64)/8,BLTDMOD; BLTDMOD 40-4=36 il rettangolo
+				; destinazione e` all'interno di un
+				; bitplane largo 20 words, ovvero 40
+				; bytes. Il rettangolo blittato
+				; e` largo 2 words, cioe` 4 bytes.
+				; Il valore del modulo e` dato dalla
+				; differenza tra le larghezze
+
+	move.l	#KONEY2X,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+
+	move.w	#(64*2*10)+2,BLTSIZE; BLTSIZE (via al blitter !)
+				; adesso, blitteremo una figura di
+				; 2 word X 6 linee con una sola
+				; blittata coi moduli opportunamente
+				; settati per lo schermo.
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
@@ -222,7 +258,7 @@ CYCLEPALETTE:
 	RTS
 .RESET:
 	MOVE.W	#6,BPLCOLORINDEX
-	MOVEM.L	(SP)+,D0-A6		; FETCH FROM STACK
+	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	BRA	CYCLEPALETTE
 ;********** Fastmem Data **********
 DrawBuffer:	DC.L SCREEN2	;pointers to buffers to be swapped
@@ -245,11 +281,20 @@ BUFFEREDCOLOR:	DC.W $0000
 BPLCOLORINDEX:	DC.W 6
 
 PATCH:		DS.B 10*64*bpls	;I need a buffer to save trap BG
-KONEY2X:
-	INCBIN	"koney10x64.raw"
 ;*******************************************************************************
 	SECTION	ChipData,DATA_C	;declared data that must be in chipmem
 ;*******************************************************************************
+KONEY2X:
+	INCBIN	"koney10x64.raw"
+KONEY1X:
+	DC.L	%10001011111011111011111011011
+	DC.L	%10010010001010001010000001110
+	DC.L	%11100011001011001011111000100
+	DC.L	%11010011001011001011000000110
+	DC.L	%11001011111011001011111000110
+	;DC.L	%0000000000000000000000000000000
+DUMMYTXT:
+	INCBIN	"dummytxt_320_8_1.raw"
 
 KONEYBG:
 	INCBIN	"dithermirrorbg_3.raw"
@@ -270,7 +315,8 @@ Copper:
 
 Palette:			;Some kind of palette (3 bpls=8 colors)
 	DC.W $0180,$0000
-	DC.W $0182,$0333
+	;DC.W $0182,$0333
+	DC.W $0182,$0FFF
 	DC.W $0184,$0444
 	DC.W $0186,$0555
 	DC.W $0188,$0666
