@@ -206,21 +206,21 @@ CREATESCROLLSPACE:
 BLITINPLACE:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
 	LEA	KONEYBG,A4
-	ADD.W	#bltoffs+40,A4
+	ADD.W	#bltoffs+56,A4
 	MOVE.L	A4,BLTDPTH
 
 	MOVE.W	#$8040,DMACON	; enable blitter DMA
 	TST	DMACONR		; for compatibility
 
-	move.w	#$ffff,BLTAFWM	; BLTAFWM lo spiegheremo dopo
-	move.w	#$ffff,BLTALWM	; BLTALWM lo spiegheremo dopo
-	move.w	#$09f0,BLTCON0	; BLTCON0 (usa A+D)
-	move.w	#$0000,BLTCON1	; BLTCON1 lo spiegheremo dopo
-	move.w	#0,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
+	MOVE.W	#$FFFF,BLTAFWM	; BLTAFWM lo spiegheremo dopo
+	MOVE.W	#$FFFF,BLTALWM	; BLTALWM lo spiegheremo dopo
+	MOVE.W	#$09F0,BLTCON0	; BLTCON0 (usa A+D)
+	MOVE.W	#$0000,BLTCON1	; BLTCON1 lo spiegheremo dopo
+	MOVE.W	#0,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
 				; sorgente ha le righe consecutive
 				; in memoria.
 
-	MOVE.W	#(w-64)/16,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
+	MOVE.W	#(w-64)/8,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
 				; destinazione e` all'interno di un
 				; bitplane largo 20 words, ovvero 40
 				; bytes. Il rettangolo blittato
@@ -228,9 +228,9 @@ BLITINPLACE:
 				; Il valore del modulo e` dato dalla
 				; differenza tra le larghezze
 
-	move.l	#KONEY2X,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	#KONEY2X,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
 
-	move.w	#(64*2*10)+2,BLTSIZE; BLTSIZE (via al blitter !)
+	MOVE.W	#64*10+4,BLTSIZE; BLTSIZE (via al blitter !)
 				; adesso, blitteremo una figura di
 				; 2 word X 6 linee con una sola
 				; blittata coi moduli opportunamente
