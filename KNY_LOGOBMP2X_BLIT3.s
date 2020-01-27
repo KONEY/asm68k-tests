@@ -25,7 +25,7 @@ bltx	=0
 blty	=0
 bltoffs	=210*(w/8)+bltx/8
 
-blth	=11
+blth	=12
 bltw	=320/16
 bltskip	=(320-320)/8
 
@@ -60,7 +60,6 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	MOVEQ	#0,D7		; INDICE PER TABELLA
 	BSR	CREAPATCH		; FILL THE BUFFER
 	BSR	CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
-	BSR	BLITINPLACE	; FIRST BLITTATA
 
 ;********************  main loop  ********************
 MainLoop:
@@ -84,6 +83,8 @@ MainLoop:
 	; do stuff here :)
 	BSR.W	PRINT2X
 	MOVE.L	#KONEYBG,DrawBuffer
+	BSR	BLITINPLACE	; FIRST BLITTATA
+	BSR	SHIFTTEXT		; SHIFT DATI BUFFER?
 	;BSR.W	CYCLEPALETTE
 	;*--- main loop end ---*
 	;move.w	#$323,$180(a6)	;show rastertime left down to $12c
@@ -185,33 +186,25 @@ CREAPATCH:
 	RTS
 
 CREATESCROLLSPACE:
-	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
+	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
 	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
 	LEA	KONEYBG,A4
-
-	MOVE.W	#$8040,DMACON	; enable blitter DMA
-
-	BTST.b	#6,DMACONR	; for compatibility
-.WBlit:
-	BTST.B	#6,DMACONR
-	BNE.S	.Wblit
-
-	MOVE.L	#$01000000,BLTCON0
-.LOOP:
-	ADD.W	#bltoffs,A4
-	MOVE.L	A4,BLTDPTH
-	MOVE.W	#bltskip,BLTDMOD
-	MOVE.W	#blth*64+bltw,BLTSIZE
-	SUB.W	#bltoffs,A4
-	ADD.W	#bpl*h,A4
-	DBF	D1,.LOOP
-	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
+.OUTERLOOP:
+	MOVEQ	#0,D6		; RESET D6
+	MOVE.B	#10*11-1,D6			
+	ADD.W	#POS_TOP+BAND_OFFSET,A4	; POSITIONING
+.INNERLOOP:				; LOOP KE CICLA LA BITMAP
+	MOVE.L	#0,(A4)+			; QUESTA ISTRUZIONE FA ESPLODERE TUTTO
+	DBRA	D6,.INNERLOOP
+	ADD.W	#POS_BOTTOM-BAND_OFFSET-bpl,A4	; POSITIONING
+	DBF	D1,.OUTERLOOP
+	MOVEM.L	(SP)+,D0-D7/A0-A6	; FETCH FROM STACK
 	RTS
 
 BLITINPLACE:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
 	LEA	KONEYBG,A4
-	ADD.W	#bltoffs+56,A4
+	ADD.W	#bltoffs+40,A4
 	MOVE.L	A4,BLTDPTH
 
 	BTST.b	#6,DMACONR	; for compatibility
@@ -227,7 +220,7 @@ BLITINPLACE:
 				; sorgente ha le righe consecutive
 				; in memoria.
 
-	MOVE.W	#(w-64)/8,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
+	MOVE.W	#0,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
 				; destinazione e` all'interno di un
 				; bitplane largo 20 words, ovvero 40
 				; bytes. Il rettangolo blittato
@@ -235,13 +228,52 @@ BLITINPLACE:
 				; Il valore del modulo e` dato dalla
 				; differenza tra le larghezze
 
-	MOVE.L	#KONEY2X,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	#DUMMYTXT,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
 
-	MOVE.W	#64*10+4,BLTSIZE; BLTSIZE (via al blitter !)
+	MOVE.W	#8*64+320/16,BLTSIZE	; BLTSIZE (via al blitter !)
 				; adesso, blitteremo una figura di
 				; 2 word X 6 linee con una sola
 				; blittata coi moduli opportunamente
 				; settati per lo schermo.
+				; BLTSIZE = (Altezza in righe)
+				; * 64 + (Larghezza in pixel)/16 
+	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
+	RTS
+
+SHIFTTEXT:
+	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
+	MOVE.L	#DUMMYTXT,BLTDPTH
+
+	BTST.b	#6,DMACONR	; for compatibility
+.WBlit:
+	BTST.B	#6,DMACONR
+	BNE.S	.Wblit
+
+	MOVE.W	#$FFFF,BLTAFWM	; BLTAFWM lo spiegheremo dopo
+	MOVE.W	#$FFFF,BLTALWM	; BLTALWM lo spiegheremo dopo
+	MOVE.W	#$19F0,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
+	MOVE.W	#$0000,BLTCON1	; BLTCON1 lo spiegheremo dopo
+	MOVE.W	#0,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
+				; sorgente ha le righe consecutive
+				; in memoria.
+
+	MOVE.W	#0,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
+				; destinazione e` all'interno di un
+				; bitplane largo 20 words, ovvero 40
+				; bytes. Il rettangolo blittato
+				; e` largo 2 words, cioe` 4 bytes.
+				; Il valore del modulo e` dato dalla
+				; differenza tra le larghezze
+
+	MOVE.L	#DUMMYTXT,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+
+	MOVE.W	#8*64+320/16,BLTSIZE	; BLTSIZE (via al blitter !)
+				; adesso, blitteremo una figura di
+				; 2 word X 6 linee con una sola
+				; blittata coi moduli opportunamente
+				; settati per lo schermo.
+				; BLTSIZE = (Altezza in righe)
+				; * 64 + (Larghezza in pixel)/16 
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
@@ -293,16 +325,9 @@ PATCH:		DS.B 10*64*bpls	;I need a buffer to save trap BG
 ;*******************************************************************************
 KONEY2X:
 	INCBIN	"koney10x64.raw"
-KONEY1X:
-	DC.L	%10001011111011111011111011011
-	DC.L	%10010010001010001010000001110
-	DC.L	%11100011001011001011111000100
-	DC.L	%11010011001011001011000000110
-	DC.L	%11001011111011001011111000110
-	;DC.L	%0000000000000000000000000000000
 DUMMYTXT:
 	INCBIN	"dummytxt_320_8_1.raw"
-
+	;DS.B h*bwid
 KONEYBG:
 	INCBIN	"dithermirrorbg_3.raw"
 	;INCBIN	"glitchbg320256_3.raw"
@@ -323,7 +348,6 @@ Copper:
 Palette:			;Some kind of palette (3 bpls=8 colors)
 	DC.W $0180,$0000
 	DC.W $0182,$0333
-	;DC.W $0182,$0FFF
 	DC.W $0184,$0444
 	DC.W $0186,$0555
 	DC.W $0188,$0666
@@ -350,22 +374,24 @@ BplPtrs:
 	DC.W $0180,$0FFF
 	DC.W $FF07,$FFFE
 	DC.W $0180,$0000
+	DC.W $0182,$0FFF	; SCROLLING TEXT WHITE ON
 
-	DC.W $FFDF,$FFFE		;allow VPOS>$ff
+	DC.W $FFDF,$FFFE	;allow VPOS>$ff
 
 	DC.W $0807,$FFFE
 	DC.W $0180,$0FFF
 	DC.W $0907,$FFFE
 	DC.W $0180,$0000
+	DC.W $0182,$0333	; SCROLLING TEXT WHITE OFF
 
-	DC.W $FFFF,$FFFE		;magic value to end copperlist
+	DC.W $FFFF,$FFFE	;magic value to end copperlist
 
 CopperE:
 ;*******************************************************************************
 	SECTION ChipBuffers,BSS_C	;BSS doesn't count toward exe size
 ;*******************************************************************************
 
-SCREEN1:	DS.B h*bwid		;Define storage for buffer 1
-SCREEN2:	DS.B h*bwid		;two buffers
+SCREEN1:	DS.B h*bwid	;Define storage for buffer 1
+SCREEN2:	DS.B h*bwid	;two buffers
 
 	END
