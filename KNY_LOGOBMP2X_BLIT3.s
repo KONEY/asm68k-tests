@@ -235,7 +235,7 @@ BLITINPLACE:
 
 SHIFTTEXT:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
-	MOVE.L	#DUMMYTXT_E,BLTDPTH
+	MOVE.L	#_DUMMYTXT,BLTDPTH
 
 	BTST.b	#6,DMACONR	; for compatibility
 .WBlit:
@@ -245,7 +245,7 @@ SHIFTTEXT:
 	MOVE.W	#$FFFF,BLTAFWM	; BLTAFWM lo spiegheremo dopo
 	MOVE.W	#$FFFE,BLTALWM	; BLTALWM lo spiegheremo dopo
 	MOVE.W	#%0001100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
-	MOVE.W	#%0000000000000010,BLTCON1	; BLTCON1 lo spiegheremo dopo
+	MOVE.W	#%0000000000000010,BLTCON1	; BLTCON1 BIT 12 DESC MODE
 	MOVE.W	#0,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
 				; sorgente ha le righe consecutive
 				; in memoria.
@@ -258,7 +258,7 @@ SHIFTTEXT:
 				; Il valore del modulo e` dato dalla
 				; differenza tra le larghezze
 
-	MOVE.L	#DUMMYTXT_E,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	#_DUMMYTXT,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
 
 	MOVE.W	#8*64+320/16,BLTSIZE	; BLTSIZE (via al blitter !)
 				; adesso, blitteremo una figura di
@@ -321,7 +321,7 @@ KONEY2X:
 DUMMYTXT:
 	INCBIN	"dummytxt_320_8_1.raw"
 	;DS.B h*bwid
-DUMMYTXT_E:
+_DUMMYTXT:
 KONEYBG:
 	INCBIN	"dithermirrorbg_3.raw"
 	;INCBIN	"glitchbg320256_3.raw"
