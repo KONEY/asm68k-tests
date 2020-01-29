@@ -191,7 +191,7 @@ CREATESCROLLSPACE:
 	LEA	KONEYBG,A4
 .OUTERLOOP:
 	MOVEQ	#0,D6		; RESET D6
-	MOVE.B	#10*11-1,D6			
+	MOVE.B	#10*11-1,D6
 	ADD.W	#POS_TOP+BAND_OFFSET,A4	; POSITIONING
 .INNERLOOP:				; LOOP KE CICLA LA BITMAP
 	MOVE.L	#0,(A4)+			; QUESTA ISTRUZIONE FA ESPLODERE TUTTO
@@ -215,18 +215,11 @@ BLITINPLACE:
 	MOVE.W	#$FFFF,BLTAFWM	; BLTAFWM lo spiegheremo dopo
 	MOVE.W	#$FFFF,BLTALWM	; BLTALWM lo spiegheremo dopo
 	MOVE.W	#$09F0,BLTCON0	; BLTCON0 (usa A+D)
-	MOVE.W	#$0000,BLTCON1	; BLTCON1 lo spiegheremo dopo
+	MOVE.W	#%0000000000000000,BLTCON1	; BLTCON1 lo spiegheremo dopo
 	MOVE.W	#0,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
-				; sorgente ha le righe consecutive
-				; in memoria.
 
 	MOVE.W	#0,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
-				; destinazione e` all'interno di un
-				; bitplane largo 20 words, ovvero 40
-				; bytes. Il rettangolo blittato
-				; e` largo 2 words, cioe` 4 bytes.
-				; Il valore del modulo e` dato dalla
-				; differenza tra le larghezze
+
 
 	MOVE.L	#DUMMYTXT,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
 
@@ -242,7 +235,7 @@ BLITINPLACE:
 
 SHIFTTEXT:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
-	MOVE.L	#DUMMYTXT,BLTDPTH
+	MOVE.L	#DUMMYTXT_E,BLTDPTH
 
 	BTST.b	#6,DMACONR	; for compatibility
 .WBlit:
@@ -250,9 +243,9 @@ SHIFTTEXT:
 	BNE.S	.Wblit
 
 	MOVE.W	#$FFFF,BLTAFWM	; BLTAFWM lo spiegheremo dopo
-	MOVE.W	#$FFFF,BLTALWM	; BLTALWM lo spiegheremo dopo
-	MOVE.W	#$19F0,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
-	MOVE.W	#$0000,BLTCON1	; BLTCON1 lo spiegheremo dopo
+	MOVE.W	#$FFFE,BLTALWM	; BLTALWM lo spiegheremo dopo
+	MOVE.W	#%0001100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
+	MOVE.W	#%0000000000000010,BLTCON1	; BLTCON1 lo spiegheremo dopo
 	MOVE.W	#0,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
 				; sorgente ha le righe consecutive
 				; in memoria.
@@ -265,7 +258,7 @@ SHIFTTEXT:
 				; Il valore del modulo e` dato dalla
 				; differenza tra le larghezze
 
-	MOVE.L	#DUMMYTXT,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	#DUMMYTXT_E,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
 
 	MOVE.W	#8*64+320/16,BLTSIZE	; BLTSIZE (via al blitter !)
 				; adesso, blitteremo una figura di
@@ -328,6 +321,7 @@ KONEY2X:
 DUMMYTXT:
 	INCBIN	"dummytxt_320_8_1.raw"
 	;DS.B h*bwid
+DUMMYTXT_E:
 KONEYBG:
 	INCBIN	"dithermirrorbg_3.raw"
 	;INCBIN	"glitchbg320256_3.raw"
