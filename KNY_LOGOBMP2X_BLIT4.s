@@ -1,4 +1,4 @@
-;*** More blitter test. TEXT scrolling from R to L :)
+;*** More blitter tests, continuous scroll from populated buffer
 
 ;*** MiniStartup by Photon ***
 	INCDIR	"NAS:AMIGA/CODE/KONEY/"
@@ -25,8 +25,8 @@ blty	=0
 bltoffs	=210*(w/8)+bltx/8
 
 blth	=12
-bltw	=336/16
-bltskip	=(336-336)/8
+bltw	=320/16
+bltskip	=(320-320)/8
 
 ;********** Macros **********
 WAITBLIT:	macro
@@ -84,11 +84,12 @@ MainLoop:
 	MOVE.L	#KONEYBG,DrawBuffer
 	BSR	BLITINPLACE	; FIRST BLITTATA
 	BSR	SHIFTTEXT		; SHIFT DATI BUFFER?
+	BSR	POPULATETXTBUFFER	; PUT SOMETHING
 	;BSR.W	CYCLEPALETTE
 	;*--- main loop end ---*
-	;move.w	#$323,$180(a6)	;show rastertime left down to $12c
-	BTST	#2,$DFF016	;POTINP - RMB pressed?
-	bne.w	MainLoop		;then loop
+	;move.w	#$323,$180(a6)	; show rastertime left down to $12c
+	BTST	#2,$DFF016	; POTINP - RMB pressed?
+	bne.w	MainLoop		; then loop
 	;*--- exit ---*
 	rts
 
@@ -192,7 +193,7 @@ CREATESCROLLSPACE:
 	MOVEQ	#0,D6		; RESET D6
 	MOVE.B	#10*11-1,D6
 	ADD.W	#POS_TOP+BAND_OFFSET,A4	; POSITIONING
-.INNERLOOP:				; LOOP KE CICLA LA BITMAP
+.INNERLOOP:			; LOOP KE CICLA LA BITMAP
 	MOVE.L	#0,(A4)+			; QUESTA ISTRUZIONE FA ESPLODERE TUTTO
 	DBRA	D6,.INNERLOOP
 	ADD.W	#POS_BOTTOM-BAND_OFFSET-bpl,A4	; POSITIONING
@@ -220,9 +221,9 @@ BLITINPLACE:
 	MOVE.W	#0,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
 
 
-	MOVE.L	#DUMMYTXT,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	#TXTSCROLLBUF,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
 
-	MOVE.W	#8*64+336/16,BLTSIZE	; BLTSIZE (via al blitter !)
+	MOVE.W	#8*64+320/16,BLTSIZE	; BLTSIZE (via al blitter !)
 				; adesso, blitteremo una figura di
 				; 2 word X 6 linee con una sola
 				; blittata coi moduli opportunamente
@@ -234,7 +235,7 @@ BLITINPLACE:
 
 SHIFTTEXT:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
-	MOVE.L	#_DUMMYTXT,BLTDPTH
+	MOVE.L	#_TXTSCROLLBUF,BLTDPTH
 
 	BTST.b	#6,DMACONR	; for compatibility
 .WBlit:
@@ -242,7 +243,7 @@ SHIFTTEXT:
 	BNE.S	.Wblit
 
 	MOVE.W	#$FFFF,BLTAFWM	; BLTAFWM lo spiegheremo dopo
-	MOVE.W	#$FFFF,BLTALWM	; BLTALWM lo spiegheremo dopo
+	MOVE.W	#$FFFE,BLTALWM	; BLTALWM lo spiegheremo dopo
 	MOVE.W	#%0001100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
 	MOVE.W	#%0000000000000010,BLTCON1	; BLTCON1 BIT 12 DESC MODE
 	MOVE.W	#0,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
@@ -257,9 +258,9 @@ SHIFTTEXT:
 				; Il valore del modulo e` dato dalla
 				; differenza tra le larghezze
 
-	MOVE.L	#_DUMMYTXT,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	#_TXTSCROLLBUF,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
 
-	MOVE.W	#8*64+320/16,BLTSIZE	; BLTSIZE (via al blitter !)
+	MOVE.W	#8*64+336/16,BLTSIZE	; BLTSIZE (via al blitter !)
 				; adesso, blitteremo una figura di
 				; 2 word X 6 linee con una sola
 				; blittata coi moduli opportunamente
@@ -267,6 +268,22 @@ SHIFTTEXT:
 				; BLTSIZE = (Altezza in righe)
 				; * 64 + (Larghezza in pixel)/16 
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
+	RTS
+
+POPULATETXTBUFFER:
+	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
+	LEA	TXTSCROLLBUF,A4
+	MOVEQ	#0,D6		; RESET D6
+	MOVE.B	#4-1,D6
+.INNERLOOP:			; LOOP KE CICLA LA BITMAP
+	ADD.W	#38,A4		; POSITIONING
+	MOVE.W	#%1010101010101010,(A4)
+	ADD.W	#2,A4		; POSITIONING
+	ADD.W	#38,A4		; POSITIONING
+	MOVE.W	#%0101010101010101,(A4)
+	ADD.W	#2,A4		; POSITIONING
+	DBRA	D6,.INNERLOOP
+	MOVEM.L	(SP)+,D0-D7/A0-A6	; FETCH FROM STACK
 	RTS
 
 CYCLEPALETTE:
@@ -319,8 +336,12 @@ KONEY2X:
 	INCBIN	"koney10x64.raw"
 DUMMYTXT:
 	INCBIN	"dummytxt_320_8_1.raw"
-	DCB.W	8,$5E
+	;DS.B h*bwid
 _DUMMYTXT:
+TXTSCROLLBUF:
+	;INCBIN	"dummytxt_336_8_1.raw"
+	DS.B (bpl+4)*8
+_TXTSCROLLBUF:
 KONEYBG:
 	INCBIN	"dithermirrorbg_3.raw"
 	;INCBIN	"glitchbg320256_3.raw"
