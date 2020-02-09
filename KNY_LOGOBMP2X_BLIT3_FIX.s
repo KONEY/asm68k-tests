@@ -1,4 +1,4 @@
-*** More blitter test. TEXT scrolling from R to L :)
+;*** More blitter test. TEXT scrolling from R to L :)
 
 ;*** MiniStartup by Photon ***
 	INCDIR	"NAS:AMIGA/CODE/KONEY/"
@@ -21,12 +21,12 @@ BAND_OFFSET=86*bpl
 
 ;BLITTER CONSTANTS
 bltx	=0
-;blty	=0
+blty	=0
 bltoffs	=210*(w/8)+bltx/8
 
-;blth	=12
-;bltw	=320/16
-;bltskip	=(320-320)/8
+blth	=12
+bltw	=336/16
+bltskip	=(336-336)/8
 
 ;********** Macros **********
 WAITBLIT:	macro
@@ -43,13 +43,13 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	move.w	#$c020,$9a(a6)
 	move.w	#$87c0,$96(a6)
 	;*--- clear screens ---*
-	lea	Screen1,a1
+	lea	SCREEN1,a1
 	bsr.w	ClearScreen
-	lea	Screen2,a1
+	lea	SCREEN2,a1
 	bsr.w	ClearScreen
 	bsr	WaitBlitter
 	;*--- start copper ---*
-	lea	Screen1,a0
+	lea	SCREEN1,a0
 	moveq	#bpl,d0
 	lea	BplPtrs+2,a1
 	moveq	#bpls-1,d1
@@ -206,7 +206,7 @@ BLITINPLACE:
 	ADD.W	#bltoffs+40,A4
 
 	BTST.b	#6,DMACONR	; for compatibility
-.WBlit:
+.Wblit:
 	BTST.B	#6,DMACONR
 	BNE.S	.Wblit
 
@@ -234,14 +234,16 @@ BLITINPLACE:
 
 SHIFTTEXT:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
+
 	BTST.b	#6,DMACONR	; for compatibility
-.WBlit:
+.Wblit:
 	BTST.B	#6,DMACONR
 	BNE.S	.Wblit
 
+	MOVE.L	#_DUMMYTXT-2,BLTDPTH
 	MOVE.W	#$FFFF,BLTAFWM	; BLTAFWM lo spiegheremo dopo
 	MOVE.W	#$FFFF,BLTALWM	; BLTALWM lo spiegheremo dopo
-	MOVE.W	#%0010100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
+	MOVE.W	#%0001100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
 	MOVE.W	#%0000000000000010,BLTCON1	; BLTCON1 BIT 12 DESC MODE
 	MOVE.W	#0,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
 				; sorgente ha le righe consecutive
@@ -255,8 +257,7 @@ SHIFTTEXT:
 				; Il valore del modulo e` dato dalla
 				; differenza tra le larghezze
 
-	MOVE.L	#_DUMMYTXT,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
-	MOVE.L	#_DUMMYTXT,BLTDPTH
+	MOVE.L	#_DUMMYTXT-2,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
 
 	MOVE.W	#8*64+320/16,BLTSIZE	; BLTSIZE (via al blitter !)
 				; adesso, blitteremo una figura di
@@ -360,7 +361,7 @@ BplPtrs:
 	DC.W $F2,0
 	DC.W $F4,0
 	DC.W $F6,0		;full 6 ptrs, in case you increase bpls
-	DC.W $100,BPLS*$1000+$200	;enable bitplanes
+	DC.W $100,bpls*$1000+$200	;enable bitplanes
 
 	DC.W $FE07,$FFFE
 	DC.W $0180,$0FFF

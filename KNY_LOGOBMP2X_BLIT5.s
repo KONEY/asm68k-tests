@@ -1,10 +1,8 @@
-*** More blitter test. TEXT scrolling from R to L :)
-
+;*** More blitter test. TEXT scrolling from R to L :)
 ;*** MiniStartup by Photon ***
 	INCDIR	"NAS:AMIGA/CODE/KONEY/"
 	INCLUDE	"PhotonsMiniWrapper1.04!.S"
 	INCLUDE	"Blitter-Register-List.S"	;use if you like ;)
-
 ;********** Constants **********
 w=320		;screen width, height, depth
 h=256
@@ -84,6 +82,8 @@ MainLoop:
 	MOVE.L	#KONEYBG,DrawBuffer
 	BSR	BLITINPLACE	; FIRST BLITTATA
 	BSR	SHIFTTEXT		; SHIFT DATI BUFFER?
+	BSR	POPULATETXTBUFFER	; PUT SOMETHING
+
 	;BSR.W	CYCLEPALETTE
 	;*--- main loop end ---*
 	;move.w	#$323,$180(a6)	;show rastertime left down to $12c
@@ -192,7 +192,7 @@ CREATESCROLLSPACE:
 	MOVEQ	#0,D6		; RESET D6
 	MOVE.B	#10*11-1,D6
 	ADD.W	#POS_TOP+BAND_OFFSET,A4	; POSITIONING
-.INNERLOOP:				; LOOP KE CICLA LA BITMAP
+.INNERLOOP:			; LOOP KE CICLA LA BITMAP
 	MOVE.L	#0,(A4)+			; QUESTA ISTRUZIONE FA ESPLODERE TUTTO
 	DBRA	D6,.INNERLOOP
 	ADD.W	#POS_BOTTOM-BAND_OFFSET-bpl,A4	; POSITIONING
@@ -220,7 +220,7 @@ BLITINPLACE:
 	MOVE.W	#0,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
 
 
-	MOVE.L	#DUMMYTXT,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	#TXTSCROLLBUF,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
 
 	MOVE.W	#8*64+320/16,BLTSIZE	; BLTSIZE (via al blitter !)
 				; adesso, blitteremo una figura di
@@ -255,8 +255,8 @@ SHIFTTEXT:
 				; Il valore del modulo e` dato dalla
 				; differenza tra le larghezze
 
-	MOVE.L	#_DUMMYTXT,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
-	MOVE.L	#_DUMMYTXT,BLTDPTH
+	MOVE.L	#_TXTSCROLLBUF-2,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	#_TXTSCROLLBUF-2,BLTDPTH
 
 	MOVE.W	#8*64+320/16,BLTSIZE	; BLTSIZE (via al blitter !)
 				; adesso, blitteremo una figura di
@@ -266,6 +266,35 @@ SHIFTTEXT:
 				; BLTSIZE = (Altezza in righe)
 				; * 64 + (Larghezza in pixel)/16 
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
+	RTS
+
+POPULATETXTBUFFER:
+	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
+	MOVE.W	FRAMESINDEX,D7
+	CMP.W	#8,D7
+	BNE.W	.SKIP
+	LEA	TXTSCROLLBUF,A4
+	MOVEQ	#0,D6		; RESET D6
+	MOVE.B	#8-1,D6
+.INNERLOOP:			; LOOP KE CICLA LA BITMAP
+	ADD.W	#38,A4		; POSITIONING
+	MOVE.W	#%0010101011001010,(A4)+
+	;ADD.W	#1,A4		; POSITIONING
+	;ADD.W	#38,A4		; POSITIONING
+	;MOVE.B	#%01010101,(A4)
+	;ADD.W	#2,A4		; POSITIONING
+	DBRA	D6,.INNERLOOP
+.SKIP:
+	SUB.W	#1,D7
+	CMP.W	#0,D7
+	BEQ.W	.RESET
+	MOVE.W	D7,FRAMESINDEX
+	MOVEM.L	(SP)+,D0-D7/A0-A6	; FETCH FROM STACK
+	RTS
+.RESET:
+	MOVE.W	#8,D7
+	MOVE.W	D7,FRAMESINDEX	; OTTIMIZZABILE
+	MOVEM.L	(SP)+,D0-D7/A0-A6	; FETCH FROM STACK
 	RTS
 
 CYCLEPALETTE:
@@ -290,6 +319,7 @@ CYCLEPALETTE:
 	MOVE.W	#6,BPLCOLORINDEX
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	BRA	CYCLEPALETTE
+
 ;********** Fastmem Data **********
 DrawBuffer:	DC.L SCREEN2	;pointers to buffers to be swapped
 ViewBuffer:	DC.L SCREEN1
@@ -320,10 +350,20 @@ DUMMYTXT:
 	INCBIN	"dummytxt_320_8_1.raw"
 	;DCB.W	8,$5E
 _DUMMYTXT:
+TXTSCROLLBUF:	DS.B (bpl)*8
+_TXTSCROLLBUF:
+FRAMESINDEX:	DC.W 8
 KONEYBG:
+
 	INCBIN	"dithermirrorbg_3.raw"
 	;INCBIN	"glitchbg320256_3.raw"
 	;DS.B h*bwid	
+FONT:
+	DC.L	%00000000000000000000000000000000
+	DC.B	%00000000,%00000000,%00000000
+	INCBIN	"scummfnt_8x752.raw"
+	EVEN
+_FONT:
 Copper:
 	DC.W $1FC,0	;Slow fetch mode, remove if AGA demo.
 	DC.W $8E,$2C81	;238h display window top, left
