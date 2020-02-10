@@ -1,4 +1,4 @@
-;*** More blitter test. TEXT scrolling from R to L :)
+;*** Nearly final blitter. Dynami scrolltext!
 ;*** MiniStartup by Photon ***
 	INCDIR	"NAS:AMIGA/CODE/KONEY/"
 	INCLUDE	"PhotonsMiniWrapper1.04!.S"
@@ -83,8 +83,8 @@ MainLoop:
 	BSR	BLITINPLACE	; FIRST BLITTATA
 	BSR	SHIFTTEXT		; SHIFT DATI BUFFER?
 	BSR	POPULATETXTBUFFER	; PUT SOMETHING
-
 	;BSR.W	CYCLEPALETTE
+
 	;*--- main loop end ---*
 	;move.w	#$323,$180(a6)	;show rastertime left down to $12c
 	BTST	#2,$DFF016	;POTINP - RMB pressed?
@@ -110,7 +110,7 @@ ClearScreen:			; a1=screen destination address to clear
 	clr.w	$66(a6)		;destination modulo
 	move.l	#$01000000,$40(a6)	;set operation type in BLTCON0/1
 	move.l	a1,$54(a6)	;destination address
-	move.w	#h*bpls*64+bpl/2,$58(a6)	;blitter operation size
+	move.l	#h*bpls*64+bpl/2,$58(a6)	;blitter operation size
 	rts
 
 VBint:				; Blank template VERTB interrupt
@@ -241,7 +241,7 @@ SHIFTTEXT:
 
 	MOVE.W	#$FFFF,BLTAFWM	; BLTAFWM lo spiegheremo dopo
 	MOVE.W	#$FFFF,BLTALWM	; BLTALWM lo spiegheremo dopo
-	MOVE.W	#%0001100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
+	MOVE.W	#%0010100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
 	MOVE.W	#%0000000000000010,BLTCON1	; BLTCON1 BIT 12 DESC MODE
 	MOVE.W	#0,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
 				; sorgente ha le righe consecutive
@@ -271,12 +271,17 @@ SHIFTTEXT:
 POPULATETXTBUFFER:
 	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
 	MOVE.W	FRAMESINDEX,D7
-	CMP.W	#8,D7
+	CMP.W	#4,D7
 	BNE.W	.SKIP
 	LEA	TXTSCROLLBUF,A4
 	LEA	FONT,A5
 	LEA	TEXT,A6
+
 	ADD.W	TEXTINDEX,A6
+	CMP.L	#_TEXT,A6	; Siamo arrivati all'ultima word della TAB?
+	BNE.S	.PROCEED
+	MOVE.W	#0,TEXTINDEX	; Riparti a puntare dalla prima word
+.PROCEED:
 	MOVE.B	(A6),D2		; Prossimo carattere in d2
 	SUB.B	#$20,D2		; TOGLI 32 AL VALORE ASCII DEL CARATTERE, IN
 	MULU.W	#8,D2		; MOLTIPLICA PER 8 IL NUMERO PRECEDENTE,
@@ -300,7 +305,7 @@ POPULATETXTBUFFER:
 	RTS
 .RESET:
 	ADD.W	#1,TEXTINDEX
-	MOVE.W	#8,D7
+	MOVE.W	#4,D7
 	MOVE.W	D7,FRAMESINDEX	; OTTIMIZZABILE
 	MOVEM.L	(SP)+,D0-D7/A0-A6	; FETCH FROM STACK
 	RTS
@@ -360,15 +365,13 @@ DUMMYTXT:
 _DUMMYTXT:
 TXTSCROLLBUF:	DS.B (bpl)*8
 _TXTSCROLLBUF:
-FRAMESINDEX:	DC.W 8
+FRAMESINDEX:	DC.W 4
 KONEYBG:
 
-	INCBIN	"dithermirrorbg_3.raw"
-	;INCBIN	"glitchbg320256_3.raw"
-	;DS.B h*bwid	
+	;INCBIN	"dithermirrorbg_3.raw"
+	INCBIN	"glitchditherbg1_320256_3.raw"
 FONT:
-	DC.L	%00000000000000000000000000000000
-	DC.B	%00000000,%00000000,%00000000,%00000000
+	DC.L	0,0	; SPACE CHAR
 	INCBIN	"scummfnt_8x752.raw"
 	EVEN
 _FONT:
@@ -445,10 +448,11 @@ BplPtrs:
 	DC.W $F6,0		;full 6 ptrs, in case you increase bpls
 	DC.W $100,BPLS*$1000+$200	;enable bitplanes
 
+COPPERWAITS:
 	DC.W $FE07,$FFFE
 	DC.W $0180,$0FFF
 	DC.W $FF07,$FFFE
-	DC.W $0180,$0133	; SCROLLAREA BG COLOR
+	DC.W $0180,$0011	; SCROLLAREA BG COLOR
 	DC.W $0182,$0AAA	; SCROLLING TEXT WHITE ON
 
 	DC.W $FFDF,$FFFE	; allow VPOS>$ff
