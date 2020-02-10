@@ -359,10 +359,6 @@ PATCH:		DS.B 10*64*bpls	;I need a buffer to save trap BG
 	;*******************************************************************************
 KONEY2X:
 	INCBIN	"koney10x64.raw"
-DUMMYTXT:
-	INCBIN	"dummytxt_320_8_1.raw"
-	;DCB.W	8,$5E
-_DUMMYTXT:
 TXTSCROLLBUF:	DS.B (bpl)*8
 _TXTSCROLLBUF:
 FRAMESINDEX:	DC.W 4
