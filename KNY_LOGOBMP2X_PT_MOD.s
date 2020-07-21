@@ -1,7 +1,7 @@
 ;*** WITH MED MODULE CONVERTED TO PT
 ;*** MiniStartup by Photon ***
 	INCDIR	"NAS:AMIGA/CODE/KONEY/"
-	SECTION	"Code+PT12",code
+	SECTION	"Code+PT12",CODE
 	INCLUDE	"PhotonsMiniWrapper1.04!.S"
 	INCLUDE	"Blitter-Register-List.S"	;use if you like ;)
 	INCLUDE	"PT12_OPTIONS.i"
@@ -55,14 +55,21 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	moveq	#bpls-1,d1
 	bsr.w	PokePtrs
 
+;** SOMETHING INSIDE HERE IS NEEDED TO MAKE MOD PLAY! **
+	move	#$e000,$dff09a	;Master and lev6
+				;NO COPPER-IRQ!
+;** SOMETHING INSIDE HERE IS NEEDED TO MAKE MOD PLAY! **
+
 	;---  Call P61_Init  ---
+	MOVEM.L D0-A6,-(SP)
 	lea Module1,a0
-	;sub.l a1,a1
-	;sub.l a2,a2
+	sub.l a1,a1
+	sub.l a2,a2
 	moveq #0,d0
 	jsr P61_Init
+	MOVEM.L (SP)+,D0-A6
 
-	MOVEQ	#0,D7		; INDICE PER TABELLA
+	;MOVEQ	#0,D7		; INDICE PER TABELLA
 	BSR	CREAPATCH		; FILL THE BUFFER
 	BSR	CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
 
@@ -101,7 +108,9 @@ MainLoop:
 	bne.w	MainLoop		;then loop
 	;*--- exit ---*
 	;;    ---  Call P61_End  ---
+	MOVEM.L D0-A6,-(SP)
 	JSR P61_End
+	MOVEM.L (SP)+,D0-A6
 	RTS
 
 ;********** Demo Routines **********
@@ -386,12 +395,12 @@ FONT:
 	EVEN
 _FONT:
 TEXT:
-	DC.B "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam. "
-	DC.B "At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque "
-	DC.B "orrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. "
-	DC.B "Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod "
-	DC.B "maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus. "
-	DC.B "Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates. "
+	DC.B "LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT, SED DO EIUSMOD TEMPOR INCIDIDUNT UT LABORE ET DOLORE MAGNA ALIQUA. UT ENIM AD MINIM VENIAM. "
+	DC.B "AT VERO EOS ET ACCUSAMUS ET IUSTO ODIO DIGNISSIMOS DUCIMUS QUI BLANDITIIS PRAESENTIUM VOLUPTATUM DELENITI ATQUE "
+	DC.B "ORRUPTI QUOS DOLORES ET QUAS MOLESTIAS EXCEPTURI SINT OCCAECATI CUPIDITATE NON PROVIDENT, SIMILIQUE SUNT IN CULPA QUI OFFICIA DESERUNT MOLLITIA ANIMI, ID EST LABORUM ET DOLORUM FUGA. "
+	DC.B "ET HARUM QUIDEM RERUM FACILIS EST ET EXPEDITA DISTINCTIO. NAM LIBERO TEMPORE, CUM SOLUTA NOBIS EST ELIGENDI OPTIO CUMQUE NIHIL IMPEDIT QUO MINUS ID QUOD "
+	DC.B "MAXIME PLACEAT FACERE POSSIMUS, OMNIS VOLUPTAS ASSUMENDA EST, OMNIS DOLOR REPELLENDUS. "
+	DC.B "TEMPORIBUS AUTEM QUIBUSDAM ET AUT OFFICIIS DEBITIS AUT RERUM NECESSITATIBUS SAEPE EVENIET UT ET VOLUPTATES. "
 	DC.B "HOT LINKZ: WWW.KONEY.ORG - WWW.RETROACADEMY.IT - WWW.DISCOGS.COM             .EOF  "
 	DC.B "                                                                              "
 	EVEN
