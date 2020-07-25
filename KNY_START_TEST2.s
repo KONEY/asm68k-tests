@@ -49,7 +49,7 @@ MainLoop:
 
 	MOVEQ	#18,d0		;Read 18
 	MOVE.W	#$12c,d0		;No buffering, so wait until raster
-	;MOVE.W	$DFF006,$DFF186	; METTI VHPOSR IN COLOR00 (LAMPEGGIO!!)
+	MOVE.W	$DFF006,$DFF180	; METTI VHPOSR IN COLOR00 (LAMPEGGIO!!)
 	BSR.W	WaitRaster	;is below the Display Window.
 	;MOVE.W	#$888,$182(a6)	;show rastertime left down to $12c
 

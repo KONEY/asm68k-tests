@@ -96,7 +96,7 @@ splitchans=1	;#channels to be split off to be decrunched at "playtime frame"
 		;Experiment to find minimum rastertime, but it should be 1 or 2
 		;for 3-4 channels songs and 0 or 1 with less channels.
 
-visuctrs=0	;enables visualizers in this example: P61_visuctr0..3.w 
+visuctrs=1	;enables visualizers in this example: P61_visuctr0..3.w 
 		;containing #frames (#lev6ints if cia=1) elapsed since last
 		;instrument triggered. (0=triggered this frame.)
 		;Easy alternative to E8x or 1Fx sync commands.

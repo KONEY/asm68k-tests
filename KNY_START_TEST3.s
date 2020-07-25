@@ -55,6 +55,7 @@ MainLoop:
 
 	bsr.w	PRINT_BG		;Stampa le linee di testo sullo schermo
 	; do stuff here :)
+	move.w	$dff006,$dff180	; metti VHPOSR in COLOR00 (lampeggio!!)
 
 	;*--- main loop end ---*
 	;move.w	#$888,$180(a6)	;show rastertime left down to $12c
@@ -103,6 +104,7 @@ PRINT_BG:
 	MOVE.L	#TESTBG,D0	; in d0 mettiamo l'indirizzo della PIC, ossia dove inizia il primo bitplane
 	LEA	BplPtrs,A1	; in a1 mettiamo l'indirizzo dei		; puntatori ai planes della COPPERLIST
 	MOVEQ	#bpls-1,D1	; numero di bitplanes -1 (qua sono 3)		; per eseguire il ciclo col DBRA
+
 
 .POINTBP:
 	MOVE.W	D0,6(A1)		; copia la word BASSA dell'indirizzo del plane	; nella word giusta nella copperlist
