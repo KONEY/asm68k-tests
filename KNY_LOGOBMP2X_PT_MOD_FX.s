@@ -110,35 +110,16 @@ MainLoop:
 	; MOD VISUALIZERS *****
 	ifne visuctrs
 	MOVEM.L D0-A6,-(SP)
-	lea	P61_visuctr2(PC),a0	;which channel? 0-3
-	;lea	p61visupoke+6,a1
-	;moveq	#3,d7		;channels count
-	LEA	Palette+6,A1
+	lea	P61_visuctr3(PC),a0;which channel? 0-3
+	;LEA	Palette+6,A1
 
-.l:	moveq	#15,d0		;maxvalue
+	moveq	#9,d0		;maxvalue
 	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
 	bpl.s	.ok		;below minvalue?
 	moveq	#0,d0		;then set to minvalue
 .ok:	
+	MOVE.W	D0,AUDIOCHANLEVEL3	; RESET
 	;move.w	d0,(a1)		;poke blue color
-	;lea	16(a1),a1		;next colorline in copper.
-	MOVE.W	d0,(A1)		;FLASH
-	
-	; TRIES TO GLITCH IN MEM
-	LEA	KONEYBG,A4
-	ADD.W	#400,A4
-	ADD.W	#400,A4
-	ADD.W	#400,A4
-	ADD.W	#400,A4
-	ADD.W	#400,A4
-	ADD.W	#400,A4
-
-	MOVE.W	d0,(A4)
-	MOVE.W	d0,2(A4)
-	; TRIES TO GLITCH IN MEM
-
-	;BSR.W	CYCLEPALETTE
-	;dbf	d7,.l
 	MOVEM.L (SP)+,D0-A6
 _ok:
 	endc
@@ -399,17 +380,25 @@ CYCLEPALETTE:
 DITHERBGPLANE:
 	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
 	LEA	KONEYBG,A3	; Indirizzo del bitplane destinazione in a3
+	ADD.W	#10239,A3		; NEXT BITPLANE (?)
 	CLR	D4
 	MOVE.B	#255,D4		; QUANTE LINEE
 	;MOVE.L	#%10101010101010101010101010101010,D5
-OUTERLOOP:		; NUOVA RIGA
-	bsr	_RandomWord
+OUTERLOOP:			; NUOVA RIGA
+	MOVE.W	#0,D5		; RESET
+	MOVE.W	AUDIOCHANLEVEL3,D1
+	CMPI.W	#0,D1		; BEWARE RND ROUTINE WILL RESET D1
+	BEQ.S	_nornd
+	BSR.W	_RandomWord
+_nornd:
+	; TODO some EOR with audiochannel level to make fx "follow" volume a bit
 	CLR	D6
 	MOVE.B	#39,D6		; RESET D6
 	;LSR.L	#3,D5
 INNERLOOP:	; LOOP KE CICLA LA BITMAP
-	MOVE.B	D5,(A3)
-	NOT	D5
+
+	MOVE.w	D5,(A3)
+	;NOT	D5
 	ADD.W	#1,A3
 	;LSL.L	#1,D5
 	DBRA	D6,INNERLOOP
@@ -419,10 +408,15 @@ INNERLOOP:	; LOOP KE CICLA LA BITMAP
 
 _RandomWord:	bsr	_RandomByte
 		rol.w	#8,d5
-_RandomByte:	move.b	$dff007,d5	;$dff00a $dff00b for mouse pos
+_RandomByte:	move.b	$dff007,d5;$dff00a $dff00b for mouse pos
 		move.b	$bfd800,d1
 		eor.b	d1,d5
 		rts
+
+AUDIOCHANLEVEL0:	DC.W 0
+AUDIOCHANLEVEL1:	DC.W 0
+AUDIOCHANLEVEL2:	DC.W 0
+AUDIOCHANLEVEL3:	DC.W 0
 
 	;********** Fastmem Data **********
 DrawBuffer:	DC.L SCREEN2	;pointers to buffers to be swapped
@@ -458,13 +452,14 @@ FRAMESINDEX:	DC.W 4
 KONEYBG:
 
 	;INCBIN	"dithermirrorbg_3.raw"
-	INCBIN	"glitchditherbg1_320256_3.raw"
+	INCBIN	"glitchditherbg7_320256_3.raw"
 FONT:
 	DC.L	0,0	; SPACE CHAR
 	INCBIN	"scummfnt_8x752.raw"
 	EVEN
 _FONT:
 TEXT:
+	DC.B "                     "
 	DC.B "LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT, SED DO EIUSMOD TEMPOR INCIDIDUNT UT LABORE ET DOLORE MAGNA ALIQUA. UT ENIM AD MINIM VENIAM. "
 	DC.B "AT VERO EOS ET ACCUSAMUS ET IUSTO ODIO DIGNISSIMOS DUCIMUS QUI BLANDITIIS PRAESENTIUM VOLUPTATUM DELENITI ATQUE "
 	DC.B "ORRUPTI QUOS DOLORES ET QUAS MOLESTIAS EXCEPTURI SINT OCCAECATI CUPIDITATE NON PROVIDENT, SIMILIQUE SUNT IN CULPA QUI OFFICIA DESERUNT MOLLITIA ANIMI, ID EST LABORUM ET DOLORUM FUGA. "
