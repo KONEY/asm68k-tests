@@ -113,7 +113,7 @@ MainLoop:
 	lea	P61_visuctr3(PC),a0;which channel? 0-3
 	;LEA	Palette+6,A1
 
-	moveq	#9,d0		;maxvalue
+	moveq	#10,d0		;maxvalue
 	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
 	bpl.s	.ok		;below minvalue?
 	moveq	#0,d0		;then set to minvalue
