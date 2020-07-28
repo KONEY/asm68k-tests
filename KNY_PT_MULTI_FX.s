@@ -95,33 +95,76 @@ MainLoop:
 	bsr	WaitBlitter
 
 	; do stuff here :)
+
 	BSR.W	PRINT2X
 	MOVE.L	#KONEYBG,DrawBuffer
 
-	;BSR.W	DITHERBGPLANE
+;	MOVE.W	AUDIOCHANLEVEL0,D2
+;	CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
+;	BEQ.S	_noglitch
+	BSR.W	DITHERBGPLANE
+;_noglitch:
+
 	BSR	CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
 
 	BSR	BLITINPLACE	; FIRST BLITTATA
 	BSR	SHIFTTEXT		; SHIFT DATI BUFFER?
 	BSR	POPULATETXTBUFFER	; PUT SOMETHING
-	;BSR.W	CYCLEPALETTE
 
+	MOVE.W	AUDIOCHANLEVEL1,D2
+	CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
+	BEQ.S	_noflash
+	BSR.W	CYCLEPALETTE
+_noflash:
 
 	; MOD VISUALIZERS *****
 	ifne visuctrs
 	MOVEM.L D0-A6,-(SP)
-	lea	P61_visuctr2(PC),a0;which channel? 0-3
-	LEA	Palette+6,A1
 
+	; GROOVE 2
+	lea	P61_visuctr0(PC),a0;which channel? 0-3
 	moveq	#10,d0		;maxvalue
 	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
-	bpl.s	.ok		;below minvalue?
+	bpl.s	.ok0		;below minvalue?
 	moveq	#0,d0		;then set to minvalue
-.ok:	
-	;MOVE.W	D0,AUDIOCHANLEVEL3	; RESET
+.ok0:	
+	MOVE.W	D0,AUDIOCHANLEVEL0	; RESET
+_ok0:
+
+	; KICKDRUM
+	lea	P61_visuctr1(PC),a0;which channel? 0-3
+	moveq	#14,d0		;maxvalue
+	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
+	bpl.s	.ok1		;below minvalue?
+	moveq	#0,d0		;then set to minvalue
+	MOVE.W	#6,BPLCOLORINDEX	; FOR TIMING
+.ok1:	
+	MOVE.W	D0,AUDIOCHANLEVEL1	; RESET
+_ok1:
+
+	; BASS
+	lea	P61_visuctr2(PC),a0;which channel? 0-3
+	LEA	Palette+6,A1
+	moveq	#15,d0		;maxvalue
+	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
+	bpl.s	.ok2		;below minvalue?
+	moveq	#0,d0		;then set to minvalue
+.ok2:	
+	MOVE.W	D0,AUDIOCHANLEVEL2	; RESET
 	move.w	d0,(a1)		;poke blue color
+_ok2:
+
+	; GROOVE 1
+	lea	P61_visuctr3(PC),a0;which channel? 0-3
+	moveq	#14,d0		;maxvalue
+	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
+	bpl.s	.ok3		;below minvalue?
+	moveq	#0,d0		;then set to minvalue
+.ok3:	
+	MOVE.W	D0,AUDIOCHANLEVEL3	; RESET
+_ok3:
+
 	MOVEM.L (SP)+,D0-A6
-_ok:
 	endc
 	; MOD VISUALIZERS *****
 
@@ -362,8 +405,8 @@ CYCLEPALETTE:
 	LEA	Palette,A1
 	SUB.W	#4,D0
 	MOVE.W	BUFFEREDCOLOR,(A1,D0.W)	; RESTORE OLD COLOR
-	CMP.W	#26,D0
-	BEQ.W	.RESET
+	;CMP.W	#26,D0
+	;BEQ.W	.RESET
 	ADD.W	#4,D0
 	MOVE.W	(A1,D0.W),BUFFEREDCOLOR	; PEEK THE COPPER	
 	MOVE.W	#$0FFF,(A1,D0.W)		; POKE THE COPPER
@@ -380,12 +423,13 @@ CYCLEPALETTE:
 DITHERBGPLANE:
 	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
 	LEA	KONEYBG,A3	; Indirizzo del bitplane destinazione in a3
-	ADD.W	#10239,A3		; NEXT BITPLANE (?)
+	;ADD.W	#10239,A3		; NEXT BITPLANE (?)
 	CLR	D4
 	MOVE.B	#255,D4		; QUANTE LINEE
 	;MOVE.L	#%10101010101010101010101010101010,D5
 OUTERLOOP:			; NUOVA RIGA
-	MOVE.W	#0,D5		; RESET
+	;MOVE.W	#0,D5		; RESET
+	MOVE.L	#%10101010101010101010101010101010,D5	; RESET
 	MOVE.W	AUDIOCHANLEVEL3,D1
 	CMPI.W	#0,D1		; BEWARE RND ROUTINE WILL RESET D1
 	BEQ.S	_nornd
