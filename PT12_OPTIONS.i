@@ -141,7 +141,7 @@ oscillo	=0	;1 to get a sample window (ptr, size) to read and display for
 quietstart=0	;attempt to avoid the very first click in some modules
 		;IMPORTANT: see ;@@ note about chipmem dc.w buffer.
 
-use1Fx=0	;Optional extra effect-sync trigger (*). If your module is free
+use1Fx=0		;Optional extra effect-sync trigger (*). If your module is free
 		;from E commands, and you add E8x to sync stuff, this will 
 		;change the usecode to include a whole code block for all E 
 		;commands. You can avoid this by only using 1Fx. (You can 
@@ -179,7 +179,7 @@ lev6	=1	;1=keep the timer B int at least for setting DMA.
 		;So don't count on it 'across calls' to these routines.
 		;Using it after P61_Init and before P61_End is fine.
 
-noshorts=0	;1 saves ~1 scanline, requires Lev6=0. Use if no instrument is
+noshorts	=0	;1 saves ~1 scanline, requires Lev6=0. Use if no instrument is
 		;shorter than ~300 bytes (or extend them to > 300 bytes).
 		;It does this by setting repeatpos/length the next frame 
 		;instead of after a few scanlines,so incompatible with MAXOPTI
@@ -201,7 +201,7 @@ suppF01	=1	;0 is incompatible with CIA mode. It moves ~100 cycles of
 
 p61cia	=0
 lev6	=1	;still set sound DMA with a simple interrupt.
-noshorts=0	;try 1 (and pad short instruments if nec) for 1 scanline gain
+noshorts	=0	;try 1 (and pad short instruments if nec) for 1 scanline gain
 dupedec	=0
 suppF01	=P61pl	;if 1, split4=1 may cause sound errors. but try it anyway. :)
 	
@@ -214,7 +214,7 @@ suppF01	=P61pl	;if 1, split4=1 may cause sound errors. but try it anyway. :)
 p61cia	=0
 lev6	=0	;don't set sound DMA with an interrupt.
 		;(use the copper to set sound DMA 11 scanlines after P61_Music)
-noshorts=1	;You must pad instruments < 300 bytes for this mode to work.
+noshorts	=1	;You must pad instruments < 300 bytes for this mode to work.
 dupedec	=0
 suppF01	=P61pl	;if 1, split4=1 may cause sound errors. but try it anyway. :)
 
@@ -226,7 +226,7 @@ suppF01	=P61pl	;if 1, split4=1 may cause sound errors. but try it anyway. :)
 
 p61cia	=0
 lev6	=0
-noshorts=1	;You must pad instruments < 300 bytes for this mode to work.
+noshorts	=1	;You must pad instruments < 300 bytes for this mode to work.
 dupedec	=1
 suppF01	=P61pl	;if 1, split4=1 may cause sound errors. but try it anyway. :)
 
