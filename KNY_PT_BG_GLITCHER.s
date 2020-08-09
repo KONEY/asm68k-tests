@@ -1,4 +1,4 @@
-;*** WITH MED MODULE CONVERTED TO PT
+;*** WITH GLITCH FROM RAM ZONES
 ;*** MiniStartup by Photon ***
 	INCDIR	"NAS:AMIGA/CODE/KONEY/"
 	SECTION	"Code+PT12",CODE
@@ -64,9 +64,14 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	jsr P61_Init
 	MOVEM.L (SP)+,D0-A6
 
-	;MOVEQ	#0,D7		; INDICE PER TABELLA
+	;PARAMS&ROUTINE
+	MOVE.L	#Module1,GLITCHER_SRC
+	MOVE.L	#BG2,GLITCHER_DEST
+	MOVE.L	#bpls-2,GLITCHER_DPH
+	BSR.W	__FILLGLITCHBG
+
 	BSR.W	CREAPATCH		; FILL THE BUFFER
-	BSR.W	CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
+	;BSR.W	CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
 
 	MOVE.L	#Copper,$80(a6)
 
@@ -90,39 +95,107 @@ MainLoop:
 	bsr	WaitBlitter
 
 	; do stuff here :)
-	BSR.W	PRINT2X
-	MOVE.L	#KONEYBG,DrawBuffer
 
-	;BSR.W	DITHERBGPLANE
+	; TRIG BG CHANGE
+	MOVE.W	P61_Pos,D5
+	CMP.W	#6,D5		; seqeunce block position
+	BNE.W	.dontSwitch	; then switch
+.checkReached:
+	CLR	D5
+	MOVE.B	POS6_REACHED,D5
+	CMP.B	#0,D5
+	BNE.B	.dontSwitch
+.switchBG:
+	MOVE.B	#1,POS6_REACHED
+	MOVE.L	#BG2,KONEYBG	; LOGO MUST NOT GLITCH !!
+	BSR.W	CREAPATCH		; FILL THE BUFFER
+	BSR.W	CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
+.dontSwitch:
+	; TRIG BG CHANGE
+
+	BSR.W	PRINT2X
+	MOVE.L	KONEYBG,DrawBuffer
+
+;	MOVE.W	AUDIOCHANLEVEL0,D2
+;	CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
+;	BEQ.S	_noglitch
+	BSR.W	DITHERBGPLANE
+;_noglitch:
+
 	BSR.W	CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
 
 	BSR.W	BLITINPLACE	; FIRST BLITTATA
 	BSR.W	SHIFTTEXT		; SHIFT DATI BUFFER?
 	BSR.W	POPULATETXTBUFFER	; PUT SOMETHING
-	;BSR.W	CYCLEPALETTE
+
+	MOVE.W	AUDIOCHANLEVEL1,D2
+	CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
+	BEQ.S	_noflash
+	BSR.W	__CYCLEPALETTE
+_noflash:
 
 	; MOD VISUALIZERS *****
 	ifne visuctrs
 	MOVEM.L D0-A6,-(SP)
-	lea	P61_visuctr2(PC),a0;which channel? 0-3
-	LEA	Palette+6,A1
 
+	; GROOVE 2
+	lea	P61_visuctr0(PC),a0;which channel? 0-3
 	moveq	#10,d0		;maxvalue
 	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
-	bpl.s	.ok		;below minvalue?
+	bpl.s	.ok0		;below minvalue?
 	moveq	#0,d0		;then set to minvalue
-.ok:	
-	;MOVE.W	D0,AUDIOCHANLEVEL3	; RESET
-	move.w	d0,(a1)		;poke blue color
+.ok0:	
+	MOVE.W	D0,AUDIOCHANLEVEL0	; RESET
+_ok0:
+
+	; KICKDRUM
+	lea	P61_visuctr1(PC),a0;which channel? 0-3
+	moveq	#14,d0		;maxvalue
+	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
+	bpl.s	.ok1		;below minvalue?
+	moveq	#0,d0		;then set to minvalue
+	MOVE.W	#6,BPLCOLORINDEX	; FOR TIMING
+.ok1:	
+	MOVE.W	D0,AUDIOCHANLEVEL1	; RESET
+_ok1:
+
+	; BASS
+	lea	P61_visuctr2(PC),a0;which channel? 0-3
+	LEA	Palette+6,A1
+	moveq	#15,d0		;maxvalue
+	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
+	bpl.s	.ok2		;below minvalue?
+	moveq	#0,d0		;then set to minvalue
+.ok2:	
+	MOVE.W	D0,AUDIOCHANLEVEL2	; RESET
+	DIVU.W	#$2,D0		; start from a darker shade
+	MOVE.L	D0,D3
+	ROL.L	#$4,D3		; expand bits to green
+	ADD.L	#1,D3		; makes color a bit geener
+	ADD.L	D3,D0
+	ROL.L	#$4,D3
+	ADD.L	D3,D0		; expand bits to red
+	MOVE.W	D0,(A1)		; poke WHITE color now
+_ok2:
+
+	; GROOVE 1
+	lea	P61_visuctr3(PC),a0;which channel? 0-3
+	moveq	#14,d0		;maxvalue
+	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
+	bpl.s	.ok3		;below minvalue?
+	moveq	#0,d0		;then set to minvalue
+.ok3:	
+	MOVE.W	D0,AUDIOCHANLEVEL3	; RESET
+_ok3:
+
 	MOVEM.L (SP)+,D0-A6
-_ok:
 	endc
 	; MOD VISUALIZERS *****
 
 	;*--- main loop end ---*
-	;move.w	#$323,$180(a6)	;show rastertime left down to $12c
-	BTST	#2,$DFF016	;POTINP - RMB pressed?
-	bne.w	MainLoop		;then loop
+	;move.w #$323,$180(a6)	; show rastertime left down to $12c
+	BTST	#2,$DFF016	; POTINP - RMB pressed?
+	bne.w	MainLoop		; then loop
 	;*--- exit ---*
 	;;    ---  Call P61_End  ---
 	MOVEM.L D0-A6,-(SP)
@@ -132,8 +205,7 @@ _ok:
 
 ;********** Demo Routines **********
 
-PokePtrs:
-			;Generic, poke ptrs into copper list
+PokePtrs:				;Generic, poke ptrs into copper list
 .bpll:	move.l	a0,d2
 	swap	d2
 	move.w	d2,(a1)		;high word of address
@@ -145,33 +217,55 @@ PokePtrs:
 
 ClearScreen:			; a1=screen destination address to clear
 	bsr	WaitBlitter
-	clr.w	$66(a6)		;destination modulo
-	move.l	#$01000000,$40(a6)	;set operation type in BLTCON0/1
-	move.l	a1,$54(a6)	;destination address
+	clr.w	$66(a6)		; destination modulo
+	move.l	#$01000000,$40(a6)	; set operation type in BLTCON0/1
+	move.l	a1,$54(a6)	; destination address
 	move.l	#h*bpls*64+bpl/2,$58(a6)	;blitter operation size
 	rts
 
 VBint:				; Blank template VERTB interrupt
-	movem.l	d0/a6,-(sp)	;Save used registers
+	movem.l	d0/a6,-(sp)	; Save used registers
 	lea	$dff000,a6
-	;** SOMETHING INSIDE HERE IS NEEDED TO MAKE MOD PLAY! **
-	move	#$e000,$9a(a6)	;Master and lev6
-				;NO COPPER-IRQ!
-	;** SOMETHING INSIDE HERE IS NEEDED TO MAKE MOD PLAY! **
-	btst	#5,$1f(a6)	;check if it's our vertb int.
+	btst	#5,$1f(a6)	; check if it's our vertb int.
 	beq.s	.notvb
 	;*--- do stuff here ---*
-	moveq	#$20,d0		;poll irq bit
+	;** SOMETHING INSIDE HERE IS NEEDED TO MAKE MOD PLAY! **
+	move	#$e000,$9a(a6)	; Master and lev6
+				; NO COPPER-IRQ!
+	;** SOMETHING INSIDE HERE IS NEEDED TO MAKE MOD PLAY! **
+	moveq	#$20,d0		; poll irq bit
 	move.w	d0,$9c(a6)
 	move.w	d0,$9c(a6)
 .notvb:	movem.l	(sp)+,d0/a6	; restore
 	rte
 
+; THIS ROUTINE WILL POPULATE A GRAPHIC AREA WITH ANY DATA FROM MEMORY
+; NEEDS 3 PARAMS: SOURCE, TARGET, DEPTH (PLANES)
+__FILLGLITCHBG:
+	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
+	MOVE.L	GLITCHER_SRC,A3
+	MOVE.L	GLITCHER_DEST,A4		; SOURCE DATA
+	MOVE.L	GLITCHER_DPH,D1	; UGUALI PER TUTTI I BITPLANE
+.BITPLANESLOOP:
+	CLR	D4
+	MOVE.B	#h-1,D4		; QUANTE LINEE
+.OUTERLOOP:			; NUOVA RIGA
+	CLR	D6
+	MOVE.B	#bpl-1,D6		; RESET D6
+	NOT	D5
+.INNERLOOP:
+	MOVE.B	(A3)+,(A4)+
+	DBRA	D6,.INNERLOOP
+	DBRA	D4,.OUTERLOOP
+	DBRA	D1,.BITPLANESLOOP
+	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
+	RTS
+
 PRINT2X:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
 	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
 	MOVE.W	DISPLACEINDEX,D7
-	LEA	KONEYBG,A4
+	MOVE.L	KONEYBG,A4
 	LEA	DISPLACETABLE,A3
 	LEA	PATCH,A0
 .OUTERLOOP:
@@ -182,21 +276,21 @@ PRINT2X:
 .INNERLOOP:
 	ADD.W	#POS_LEFT,A4	; POSITIONING
 	MOVE.L	(A0)+,D2		; SALVO SFONDO
-	MOVE.L	(A5)+,D3		; QUESTA ISTRUZIONE FA ESPLODERE TUTTO
+	MOVE.L	(A5)+,D3		
 	MOVE.L	(A3,D7.W),D5	; FX 1
 	ADD.W	#2,D7		; INCREMENTO INDICE TAB
 	AND.W	#256-1,D7		; AND TIRA FUORI SEMPRE FINO A X E POI WRAPPA
 	ROL.L	D5,D3		; GLITCH
 
 	EOR.L	D2,D3		; KOMBINO SFONDO+SKRITTA
-	MOVE.L	D3,(A4)		; QUESTA ISTRUZIONE FA ESPLODERE TUTTO
+	MOVE.L	D3,(A4)		
 	ADD.W	#POS_MID,A4	; POSITIONING
 
 	MOVE.L	(A0)+,D2		; SALVO SFONDO
-	MOVE.L	(A5)+,D3		; QUESTA ISTRUZIONE FA ESPLODERE TUTTO
+	MOVE.L	(A5)+,D3		
 	LSR.L	D5,D3		; GLITCH
 	EOR.L	D2,D3		; KOMBINO SFONDO+SKRITTA
-	MOVE.L	D3,(A4)		; QUESTA ISTRUZIONE FA ESPLODERE TUTTO
+	MOVE.L	D3,(A4)		
 	ADD.W	#POS_RIGHT,A4	; POSITIONING
 	DBRA	D6,.INNERLOOP
 	ADD.W	#POS_BOTTOM,A4	; POSITIONING
@@ -208,17 +302,17 @@ PRINT2X:
 CREAPATCH:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
 	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
-	LEA	KONEYBG,A4
+	MOVE.L	KONEYBG,A4
 	LEA	PATCH,A5
 .OUTERLOOP:
 	MOVEQ	#0,D6		; RESET D6
-	MOVE.B	#9,D6			
+	MOVE.B	#9,D6
 	ADD.W	#POS_TOP,A4	; POSITIONING
 .INNERLOOP:
 	ADD.W	#POS_LEFT,A4	; POSITIONING
-	MOVE.L	(A4),(A5)+	; QUESTA ISTRUZIONE FA ESPLODERE TUTTO
+	MOVE.L	(A4),(A5)+	
 	ADD.W	#POS_MID,A4	; POSITIONING
-	MOVE.L	(A4),(A5)+	; QUESTA ISTRUZIONE FA ESPLODERE TUTTO
+	MOVE.L	(A4),(A5)+	
 	ADD.W	#POS_RIGHT,A4	; POSITIONING
 	DBRA	D6,.INNERLOOP
 	ADD.W	#POS_BOTTOM,A4	; POSITIONING
@@ -229,13 +323,13 @@ CREAPATCH:
 CREATESCROLLSPACE:
 	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
 	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
-	LEA	KONEYBG,A4
+	MOVE.L	KONEYBG,A4
 .OUTERLOOP:
 	MOVEQ	#0,D6		; RESET D6
 	MOVE.B	#10*11-1,D6
 	ADD.W	#POS_TOP+BAND_OFFSET,A4	; POSITIONING
 .INNERLOOP:
-	MOVE.L	#0,(A4)+			; QUESTA ISTRUZIONE FA ESPLODERE TUTTO
+	MOVE.L	#0,(A4)+	
 	DBRA	D6,.INNERLOOP
 	ADD.W	#POS_BOTTOM-BAND_OFFSET-bpl,A4	; POSITIONING
 	DBF	D1,.OUTERLOOP
@@ -244,7 +338,7 @@ CREATESCROLLSPACE:
 
 BLITINPLACE:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
-	LEA	KONEYBG,A4
+	MOVE.L	KONEYBG,A4
 	ADD.W	#bltoffs+40,A4
 
 	BTST.b	#6,DMACONR	; for compatibility
@@ -260,7 +354,6 @@ BLITINPLACE:
 	MOVE.W	#0,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
 
 	MOVE.W	#0,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
-
 
 	MOVE.L	#TXTSCROLLBUF,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
 
@@ -352,7 +445,7 @@ POPULATETXTBUFFER:
 	MOVEM.L	(SP)+,D0-D7/A0-A6	; FETCH FROM STACK
 	RTS
 
-CYCLEPALETTE:
+__CYCLEPALETTE:
 	MOVEM.L	D0-A6,-(SP)		; SAVE TO STACK
 	;MOVE.B	COLORSINDEX,D0		; UGUALI PER TUTTI I BITPLANE
 	MOVE.W	BPLCOLORINDEX,D0
@@ -360,8 +453,8 @@ CYCLEPALETTE:
 	LEA	Palette,A1
 	SUB.W	#4,D0
 	MOVE.W	BUFFEREDCOLOR,(A1,D0.W)	; RESTORE OLD COLOR
-	CMP.W	#26,D0
-	BEQ.W	.RESET
+	;CMP.W	#26,D0
+	;BEQ.W	.RESET
 	ADD.W	#4,D0
 	MOVE.W	(A1,D0.W),BUFFEREDCOLOR	; PEEK THE COPPER	
 	MOVE.W	#$0FFF,(A1,D0.W)		; POKE THE COPPER
@@ -373,17 +466,18 @@ CYCLEPALETTE:
 .RESET:
 	MOVE.W	#6,BPLCOLORINDEX
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
-	BRA	CYCLEPALETTE
+	BRA	__CYCLEPALETTE
 
 DITHERBGPLANE:
 	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
-	LEA	KONEYBG,A3	; Indirizzo del bitplane destinazione in a3
-	ADD.W	#10239,A3		; NEXT BITPLANE (?)
+	MOVE.L	KONEYBG,A3	; Indirizzo del bitplane destinazione in a3
+	;ADD.W	#10239,A3		; NEXT BITPLANE (?)
 	CLR	D4
 	MOVE.B	#255,D4		; QUANTE LINEE
 	;MOVE.L	#%10101010101010101010101010101010,D5
 OUTERLOOP:			; NUOVA RIGA
-	MOVE.W	#0,D5		; RESET
+	;MOVE.W	#0,D5		; RESET
+	MOVE.L	#%10101010101010101010101010101010,D5	; RESET
 	MOVE.W	AUDIOCHANLEVEL3,D1
 	CMPI.W	#0,D1		; BEWARE RND ROUTINE WILL RESET D1
 	BEQ.S	_nornd
@@ -412,15 +506,19 @@ _RandomByte:	move.b	$dff007,d5;$dff00a $dff00b for mouse pos
 		rts
 
 	;********** Fastmem Data **********
+GLITCHER_SRC:	DC.L 0
+GLITCHER_DEST:	DC.L 0
+GLITCHER_DPH:	DC.L 0
 
 AUDIOCHANLEVEL0:	DC.W 0
 AUDIOCHANLEVEL1:	DC.W 0
 AUDIOCHANLEVEL2:	DC.W 0
 AUDIOCHANLEVEL3:	DC.W 0
-		EVEN
 
-DrawBuffer:	DC.L SCREEN2	;pointers to buffers to be swapped
+KONEYBG:		DC.L BG1		; INIT BG
+DrawBuffer:	DC.L SCREEN2	; pointers to buffers to be swapped
 ViewBuffer:	DC.L SCREEN1
+
 DISPLACEINDEX:	DC.W 0
 DISPLACETABLE:
 	DC.W 0,0,0,2,0,0,0,0,0,2,0,3,0,0,6,1
@@ -431,34 +529,41 @@ DISPLACETABLE:
 	DC.W 2,1,0,1,0,3,0,3,0,0,0,1,2,1,0,0
 	DC.W 0,0,0,0,3,0,0,0,0,1,0,0,0,2,1,0
 	DC.W 1,3,0,2,0,0,0,3,2,0,4,0,1,0,7,0
+
 COLORSINDEX:	DC.W 0
 COLORSTABLE:
 	DC.W $000F,$0EEE,$0DDD,$0CCC,$0BBB,$0AAA,$0999,$0888
 	DC.W $0777,$0666,$0555,$0444,$0333,$0222,$0111,$0000
+
 BUFFEREDCOLOR:	DC.W $0000
 BPLCOLORINDEX:	DC.W 6
 
 PATCH:		DS.B 10*64*bpls	;I need a buffer to save trap BG
 
+TEXTINDEX:	DC.W 0
+POS6_REACHED:	DC.B 0
+POS16_REACHED:	DC.B 0
+
 	;*******************************************************************************
 	SECTION	ChipData,DATA_C	;declared data that must be in chipmem
 	;*******************************************************************************
 
-KONEY2X:
-	INCBIN	"koney10x64.raw"
+KONEY2X:	INCBIN	"koney10x64.raw"
+
 TXTSCROLLBUF:	DS.B (bpl)*8
 _TXTSCROLLBUF:
+
 FRAMESINDEX:	DC.W 4
-KONEYBG:
-	INCBIN	"dithermirrorbg_3.raw"
-	;INCBIN	"glitchditherbg7_320256_3.raw"
-FONT:
-	DC.L	0,0	; SPACE CHAR
-	INCBIN	"scummfnt_8x752.raw"
-	EVEN
-_FONT:
+
+BG1:	INCBIN	"glitchditherbg8_320256_3.raw"
+BG2:	INCBIN	"dithermirrorbg_3.raw"
+;BG32:	INCBIN	"glitchditherbg1_320256_3.raw"
+;BG4:	INCBIN	"glitchditherbg9_320256_3.raw"
+
+FONT:	DC.L	0,0	; SPACE CHAR
+	INCBIN	"scummfnt_8x752.raw",0
 TEXT:
-	DC.B "                     "
+	DC.B "  !!!! EPILEPSY DANGER ALERT !!!!  "
 	DC.B "LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT, SED DO EIUSMOD TEMPOR INCIDIDUNT UT LABORE ET DOLORE MAGNA ALIQUA. UT ENIM AD MINIM VENIAM. "
 	DC.B "AT VERO EOS ET ACCUSAMUS ET IUSTO ODIO DIGNISSIMOS DUCIMUS QUI BLANDITIIS PRAESENTIUM VOLUPTATUM DELENITI ATQUE "
 	DC.B "ORRUPTI QUOS DOLORES ET QUAS MOLESTIAS EXCEPTURI SINT OCCAECATI CUPIDITATE NON PROVIDENT, SIMILIQUE SUNT IN CULPA QUI OFFICIA DESERUNT MOLLITIA ANIMI, ID EST LABORUM ET DOLORUM FUGA. "
@@ -469,7 +574,6 @@ TEXT:
 	DC.B "                                                                              "
 	EVEN
 _TEXT:
-TEXTINDEX:	DC.W 0
 
 Copper:
 	DC.W $1FC,0	;Slow fetch mode, remove if AGA demo.
@@ -525,7 +629,7 @@ COPPERWAITS:
 	DC.W $0182,$0333	; SCROLLING TEXT WHITE OFF
 
 	DC.W $FFFF,$FFFE	;magic value to end copperlist
-CopperE:
+_Copper:
 
 Module1:	INCBIN	"FatalDefrag_v3.P61"	; code $9104
 

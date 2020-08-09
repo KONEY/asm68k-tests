@@ -55,11 +55,6 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	moveq	#bpls-1,d1
 	bsr.w	PokePtrs
 
-;** SOMETHING INSIDE HERE IS NEEDED TO MAKE MOD PLAY! **
-	move	#$e000,$dff09a	;Master and lev6
-				;NO COPPER-IRQ!
-;** SOMETHING INSIDE HERE IS NEEDED TO MAKE MOD PLAY! **
-
 	;---  Call P61_Init  ---
 	MOVEM.L D0-A6,-(SP)
 	lea Module1,a0
@@ -70,8 +65,8 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	MOVEM.L (SP)+,D0-A6
 
 	;MOVEQ	#0,D7		; INDICE PER TABELLA
-	BSR	CREAPATCH		; FILL THE BUFFER
-	BSR	CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
+	BSR.W	CREAPATCH		; FILL THE BUFFER
+	BSR.W	CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
 
 	MOVE.L	#Copper,$80(a6)
 
@@ -97,9 +92,9 @@ MainLoop:
 	; do stuff here :)
 	BSR.W	PRINT2X
 	MOVE.L	#KONEYBG,DrawBuffer
-	BSR	BLITINPLACE	; FIRST BLITTATA
-	BSR	SHIFTTEXT		; SHIFT DATI BUFFER?
-	BSR	POPULATETXTBUFFER	; PUT SOMETHING
+	BSR.W	BLITINPLACE	; FIRST BLITTATA
+	BSR.W	SHIFTTEXT		; SHIFT DATI BUFFER?
+	BSR.W	POPULATETXTBUFFER	; PUT SOMETHING
 	;BSR.W	CYCLEPALETTE
 
 	;*--- main loop end ---*
@@ -140,6 +135,10 @@ VBint:				; Blank template VERTB interrupt
 	btst	#5,$1f(a6)	;check if it's our vertb int.
 	beq.s	.notvb
 	;*--- do stuff here ---*
+	;** SOMETHING INSIDE HERE IS NEEDED TO MAKE MOD PLAY! **
+	move	#$e000,$9a(a6)	;Master and lev6
+				;NO COPPER-IRQ!
+	;** SOMETHING INSIDE HERE IS NEEDED TO MAKE MOD PLAY! **
 	moveq	#$20,d0		;poll irq bit
 	move.w	d0,$9c(a6)
 	move.w	d0,$9c(a6)
@@ -380,15 +379,13 @@ PATCH:		DS.B 10*64*bpls	;I need a buffer to save trap BG
 	SECTION	ChipData,DATA_C	;declared data that must be in chipmem
 	;*******************************************************************************
 
-KONEY2X:
-	INCBIN	"koney10x64.raw"
+KONEY2X:	INCBIN	"koney10x64.raw"
 TXTSCROLLBUF:	DS.B (bpl)*8
 _TXTSCROLLBUF:
 FRAMESINDEX:	DC.W 4
-KONEYBG:
-
+KONEYBG:	INCBIN	"glitchditherbg1_320256_3.raw"
 	;INCBIN	"dithermirrorbg_3.raw"
-	INCBIN	"glitchditherbg1_320256_3.raw"
+
 FONT:
 	DC.L	0,0	; SPACE CHAR
 	INCBIN	"scummfnt_8x752.raw"

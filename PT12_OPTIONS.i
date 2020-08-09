@@ -91,12 +91,12 @@ split4	=0	;Great time gain, but INCOMPATIBLE with F03, F02, and F01
 		;See ;@@ note for P61_SetPosition.
 
 
-splitchans=1	;#channels to be split off to be decrunched at "playtime frame"
+splitchans	=1	;#channels to be split off to be decrunched at "playtime frame"
 		;0=use normal "decrunch all channels in the same frame"
 		;Experiment to find minimum rastertime, but it should be 1 or 2
 		;for 3-4 channels songs and 0 or 1 with less channels.
 
-visuctrs=1	;enables visualizers in this example: P61_visuctr0..3.w 
+visuctrs	=1	;enables visualizers in this example: P61_visuctr0..3.w 
 		;containing #frames (#lev6ints if cia=1) elapsed since last
 		;instrument triggered. (0=triggered this frame.)
 		;Easy alternative to E8x or 1Fx sync commands.
@@ -104,20 +104,20 @@ visuctrs=1	;enables visualizers in this example: P61_visuctr0..3.w
 asmonereport=0	;ONLY for printing a settings report on assembly. Use
 		;if you get problems (only works in AsmOne/AsmPro, tho)
 
-p61system=1	;1=system-friendly. Use for DOS/Workbench programs.
+p61system	=1	;1=system-friendly. Use for DOS/Workbench programs.
 
 p61exec	=0	;0 if execbase is destroyed, such as in a trackmo.
 
 p61fade	=0	;enable channel volume fading from your demo
 
-channels=4	;<4 for game sound effects in the higher channels. Incompatible
+channels	=4	;<4 for game sound effects in the higher channels. Incompatible
 		; with splitchans/split4.
 
-playflag=0	;1=enable music on/off capability (at run-time). .If 0, you can
+playflag	=0	;1=enable music on/off capability (at run-time). .If 0, you can
 		;still do this by just, you know, not calling P61_Music...
 		;It's a convenience function to "pause" music in CIA mode.
 
-p61bigjtab=0	;1 to waste 480b and save max 56 cycles on 68000.
+p61bigjtab	=0	;1 to waste 480b and save max 56 cycles on 68000.
 
 opt020	=0	;1=enable optimizations for 020+. Please be 68000 compatible!
 		;splitchans will already give MUCH bigger gains, and you can
@@ -141,7 +141,7 @@ oscillo	=0	;1 to get a sample window (ptr, size) to read and display for
 quietstart=0	;attempt to avoid the very first click in some modules
 		;IMPORTANT: see ;@@ note about chipmem dc.w buffer.
 
-use1Fx=0		;Optional extra effect-sync trigger (*). If your module is free
+use1Fx	=0		;Optional extra effect-sync trigger (*). If your module is free
 		;from E commands, and you add E8x to sync stuff, this will 
 		;change the usecode to include a whole code block for all E 
 		;commands. You can avoid this by only using 1Fx. (You can 
