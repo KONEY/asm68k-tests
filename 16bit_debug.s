@@ -1,7 +1,7 @@
 ;*** WITH GLITCH FROM RAM ZONES
 ;*** MiniStartup by Photon ***
 	INCDIR	"NAS:AMIGA/CODE/KONEY/"
-	SECTION	"Code+PT12",CODE
+	SECTION	Code+PT12,CODE
 	INCLUDE	"PhotonsMiniWrapper1.04!.S"
 	INCLUDE	"Blitter-Register-List.S"	;use if you like ;)
 	INCLUDE	"PT12_OPTIONS.i"
@@ -29,21 +29,17 @@ bltoffs	=210*(w/8)+bltx/8
 ;bltw	=320/16
 ;bltskip	=(320-320)/8
 
-;********** Macros **********
-WAITBLIT:	macro
-	tst.w	(a6)	;for compatibility with A1000
-.wb\@:	btst	#6,2(a6)
-	bne.s	.wb\@
-	endm
-
 ;********** Demo **********	;Demo-specific non-startup code below.
 Demo:	;a4=VBR, a6=Custom Registers Base addr
 	;*--- init ---*
 	move.l	#VBint,$6c(a4)
 	move.w	#%1100000000100000,INTENA
+
 	;** SOMETHING INSIDE HERE IS NEEDED TO MAKE MOD PLAY! **
-	move.w	#%1110000000000000,INTENA	; Master and lev6	; NO COPPER-IRQ!
+	move.w	#%1110000000000000,INTENA	; Master and lev6
+					; NO COPPER-IRQ!
 	;** SOMETHING INSIDE HERE IS NEEDED TO MAKE MOD PLAY! **
+
 	move.w	#$87c0,DMACON
 	;*--- clear screens ---*
 	lea	Screen1,a1
@@ -67,14 +63,8 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	jsr P61_Init
 	MOVEM.L (SP)+,D0-A6
 
-	;PARAMS&ROUTINE
-	MOVE.L	#Module1,GLITCHER_SRC
-	MOVE.L	#BG2,GLITCHER_DEST
-	MOVE.L	#bpls-2,GLITCHER_DPH
-	BSR.W	__FILLGLITCHBG
-
 	BSR.W	CREAPATCH		; FILL THE BUFFER
-	;BSR.W	CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
+	BSR.W	CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
 
 	MOVE.L	#Copper,$80(a6)
 
@@ -99,101 +89,12 @@ MainLoop:
 
 	; do stuff here :)
 
-	; TRIG BG CHANGE
-	MOVE.W	P61_Pos,D5
-	CMP.W	#6,D5		; seqeunce block position
-	BNE.W	.dontSwitch	; then switch
-.checkReached:
-	CLR	D5
-	MOVE.B	POS6_REACHED,D5
-	CMP.B	#0,D5
-	BNE.B	.dontSwitch
-.switchBG:
-	MOVE.B	#1,POS6_REACHED
-	MOVE.L	#BG2,KONEYBG	; LOGO MUST NOT GLITCH !!
-	BSR.W	CREAPATCH		; FILL THE BUFFER
-	BSR.W	CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
-.dontSwitch:
-	; TRIG BG CHANGE
-
 	BSR.W	PRINT2X
 	MOVE.L	KONEYBG,DrawBuffer
-
-;	MOVE.W	AUDIOCHANLEVEL0,D2
-;	CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
-;	BEQ.S	_noglitch
-	BSR.W	DITHERBGPLANE
-;_noglitch:
-
-	BSR.W	CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
 
 	BSR.W	BLITINPLACE	; FIRST BLITTATA
 	BSR.W	SHIFTTEXT		; SHIFT DATI BUFFER?
 	BSR.W	POPULATETXTBUFFER	; PUT SOMETHING
-
-	MOVE.W	AUDIOCHANLEVEL1,D2
-	CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
-	BEQ.S	_noflash
-	BSR.W	__CYCLEPALETTE
-_noflash:
-
-	; MOD VISUALIZERS *****
-	ifne visuctrs
-	MOVEM.L D0-A6,-(SP)
-
-	; GROOVE 2
-	lea	P61_visuctr0(PC),a0;which channel? 0-3
-	moveq	#10,d0		;maxvalue
-	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
-	bpl.s	.ok0		;below minvalue?
-	moveq	#0,d0		;then set to minvalue
-.ok0:	
-	MOVE.W	D0,AUDIOCHANLEVEL0	; RESET
-_ok0:
-
-	; KICKDRUM
-	lea	P61_visuctr1(PC),a0;which channel? 0-3
-	moveq	#14,d0		;maxvalue
-	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
-	bpl.s	.ok1		;below minvalue?
-	moveq	#0,d0		;then set to minvalue
-	MOVE.W	#6,BPLCOLORINDEX	; FOR TIMING
-.ok1:	
-	MOVE.W	D0,AUDIOCHANLEVEL1	; RESET
-_ok1:
-
-	; BASS
-	lea	P61_visuctr2(PC),a0;which channel? 0-3
-	LEA	Palette+6,A1
-	moveq	#15,d0		;maxvalue
-	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
-	bpl.s	.ok2		;below minvalue?
-	moveq	#0,d0		;then set to minvalue
-.ok2:	
-	MOVE.W	D0,AUDIOCHANLEVEL2	; RESET
-	DIVU.W	#$2,D0		; start from a darker shade
-	MOVE.L	D0,D3
-	ROL.L	#$4,D3		; expand bits to green
-	ADD.L	#1,D3		; makes color a bit geener
-	ADD.L	D3,D0
-	ROL.L	#$4,D3
-	ADD.L	D3,D0		; expand bits to red
-	MOVE.W	D0,(A1)		; poke WHITE color now
-_ok2:
-
-	; GROOVE 1
-	lea	P61_visuctr3(PC),a0;which channel? 0-3
-	moveq	#14,d0		;maxvalue
-	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
-	bpl.s	.ok3		;below minvalue?
-	moveq	#0,d0		;then set to minvalue
-.ok3:	
-	MOVE.W	D0,AUDIOCHANLEVEL3	; RESET
-_ok3:
-
-	MOVEM.L (SP)+,D0-A6
-	endc
-	; MOD VISUALIZERS *****
 
 	;*--- main loop end ---*
 	;move.w #$323,$180(a6)	; show rastertime left down to $12c
@@ -237,28 +138,6 @@ VBint:				; Blank template VERTB interrupt
 	move.w	d0,$9c(a6)
 .notvb:	movem.l	(sp)+,d0/a6	; restore
 	rte
-
-; THIS ROUTINE WILL POPULATE A GRAPHIC AREA WITH ANY DATA FROM MEMORY
-; NEEDS 3 PARAMS: SOURCE, TARGET, DEPTH (PLANES)
-__FILLGLITCHBG:
-	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
-	MOVE.L	GLITCHER_SRC,A3
-	MOVE.L	GLITCHER_DEST,A4		; SOURCE DATA
-	MOVE.L	GLITCHER_DPH,D1	; UGUALI PER TUTTI I BITPLANE
-.BITPLANESLOOP:
-	CLR	D4
-	MOVE.B	#h-1,D4		; QUANTE LINEE
-.OUTERLOOP:			; NUOVA RIGA
-	CLR	D6
-	MOVE.B	#bpl-1,D6		; RESET D6
-	NOT	D5
-.INNERLOOP:
-	MOVE.B	(A3)+,(A4)+
-	DBRA	D6,.INNERLOOP
-	DBRA	D4,.OUTERLOOP
-	DBRA	D1,.BITPLANESLOOP
-	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
-	RTS
 
 PRINT2X:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
@@ -340,7 +219,7 @@ BLITINPLACE:
 	MOVE.L	KONEYBG,A4
 	ADD.W	#bltoffs+40,A4
 
-	BTST.B	#6,DMACONR	; for compatibility
+	BTST.b	#6,DMACONR	; for compatibility
 .WBlit:
 	BTST.B	#6,DMACONR
 	BNE.S	.Wblit
@@ -368,7 +247,7 @@ BLITINPLACE:
 
 SHIFTTEXT:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
-	BTST.B	#6,DMACONR	; for compatibility
+	BTST.b	#6,DMACONR	; for compatibility
 .WBlit:
 	BTST.B	#6,DMACONR
 	BNE.S	.Wblit
@@ -503,7 +382,7 @@ _RandomByte:	move.b	$dff007,d5;$dff00a $dff00b for mouse pos
 		move.b	$bfd800,d1
 		eor.b	d1,d5
 		rts
-
+	EVEN
 	;********** Fastmem Data **********
 GLITCHER_SRC:	DC.L 0
 GLITCHER_DEST:	DC.L 0

@@ -40,4 +40,7 @@ BLTBDAT	= $dff072
 BLTADAT	= $dff074
 
 ;bit 6: enable blitter DMA - bit 10: give blitter priority over the CPU
-DMACON	= $dff096	
+DMACON	= $dff096
+
+;Interrupt enable bits (clear or set bits)
+INTENA	= $dff09A
