@@ -7,10 +7,10 @@ Start:
 	beq.s .yes68k
 	lea .GetVBR(PC),a5		;else fetch vector base address to a4:
 	jsr -30(a6)		;enter Supervisor mode
-
     *--- save view+coppers ---*
 
 .yes68k:
+	MOVE.L $78.W,A4		; or $6c(a0) with a0=vbrbase BY KONEY
 	lea .GfxLib(PC),a1		;either way return to here and open
 	jsr -408(a6)		;graphics library
 	tst.l d0			;if not OK,

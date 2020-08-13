@@ -9,7 +9,7 @@
 ;********** Constants **********
 w=320		;screen width, height, depth
 h=256
-bpls=3		;handy values:
+bpls=4		;handy values:
 bpl=w/16*2	;byte-width of 1 bitplane line (40)
 bwid=bpls*bpl	;byte-width of 1 pixel line (all bpls)
 
@@ -28,13 +28,6 @@ bltoffs	=210*(w/8)+bltx/8
 ;blth	=12
 ;bltw	=320/16
 ;bltskip	=(320-320)/8
-
-;********** Macros **********
-WAITBLIT:	macro
-	tst.w	(a6)	;for compatibility with A1000
-.wb\@:	btst	#6,2(a6)
-	bne.s	.wb\@
-	endm
 
 ;********** Demo **********	;Demo-specific non-startup code below.
 Demo:	;a4=VBR, a6=Custom Registers Base addr
@@ -68,14 +61,15 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	MOVEM.L (SP)+,D0-A6
 
 	;PARAMS&ROUTINE
-	MOVE.L	#Module1,GLITCHER_SRC
-	MOVE.L	#BG2,GLITCHER_DEST
-	MOVE.L	#bpls-2,GLITCHER_DPH
-	BSR.W	__FILLGLITCHBG
+	;MOVE.L	#Module1,GLITCHER_SRC
+	;MOVE.L	#BG1,GLITCHER_DEST
+	;MOVE.L	#bpls-3,GLITCHER_DPH
+	;BSR.W	__FILLGLITCHBG
 
-	BSR.W	CREAPATCH		; FILL THE BUFFER
-	;BSR.W	CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
+	BSR.W	__CREAPATCH		; FILL THE BUFFER
+	;BSR.W	__CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
 
+	BSR.W	__InitCopperPalette
 	MOVE.L	#Copper,$80(a6)
 
 ;********************  main loop  ********************
@@ -95,47 +89,26 @@ MainLoop:
 	;*--- ...draw into the other(a2) ---*
 	move.l	a2,a1
 	;bsr	ClearScreen
-	bsr	WaitBlitter
 
 	; do stuff here :)
+	BSR.W	__PRINT2X
 
-	; TRIG BG CHANGE
-	MOVE.W	P61_Pos,D5
-	CMP.W	#6,D5		; seqeunce block position
-	BNE.W	.dontSwitch	; then switch
-.checkReached:
-	CLR	D5
-	MOVE.B	POS6_REACHED,D5
-	CMP.B	#0,D5
-	BNE.B	.dontSwitch
-.switchBG:
-	MOVE.B	#1,POS6_REACHED
-	MOVE.L	#BG2,KONEYBG	; LOGO MUST NOT GLITCH !!
-	BSR.W	CREAPATCH		; FILL THE BUFFER
-	BSR.W	CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
-.dontSwitch:
-	; TRIG BG CHANGE
-
-	BSR.W	PRINT2X
-	MOVE.L	KONEYBG,DrawBuffer
-
-;	MOVE.W	AUDIOCHANLEVEL0,D2
-;	CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
-;	BEQ.S	_noglitch
-	BSR.W	DITHERBGPLANE
-;_noglitch:
-
-	BSR.W	CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
-
-	BSR.W	BLITINPLACE	; FIRST BLITTATA
-	BSR.W	SHIFTTEXT		; SHIFT DATI BUFFER?
-	BSR.W	POPULATETXTBUFFER	; PUT SOMETHING
+	MOVE.W	AUDIOCHANLEVEL3,D2
+	CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
+	BEQ.S	_noglitch
+	BSR.W	__DITHERBGPLANE	; THIS NEEDS OPTIMIZING
+	_noglitch:
 
 	MOVE.W	AUDIOCHANLEVEL1,D2
 	CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
 	BEQ.S	_noflash
 	BSR.W	__CYCLEPALETTE
-_noflash:
+	_noflash:
+
+	BSR.W	__CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
+	BSR.W	__BLITINPLACE		; FIRST BLITTATA
+	BSR.W	__SHIFTTEXT		; SHIFT DATI BUFFER?
+	BSR.W	__POPULATETXTBUFFER	; PUT SOMETHING
 
 	; MOD VISUALIZERS *****
 	ifne visuctrs
@@ -147,39 +120,39 @@ _noflash:
 	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
 	bpl.s	.ok0		;below minvalue?
 	moveq	#0,d0		;then set to minvalue
-.ok0:	
+	.ok0:	
 	MOVE.W	D0,AUDIOCHANLEVEL0	; RESET
-_ok0:
+	_ok0:
 
 	; KICKDRUM
 	lea	P61_visuctr1(PC),a0;which channel? 0-3
-	moveq	#14,d0		;maxvalue
+	moveq	#40,d0		;maxvalue
 	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
 	bpl.s	.ok1		;below minvalue?
 	moveq	#0,d0		;then set to minvalue
-	MOVE.W	#6,BPLCOLORINDEX	; FOR TIMING
-.ok1:	
+	MOVE.W	#10,BPLCOLORINDEX	; FOR TIMING
+	.ok1:	
 	MOVE.W	D0,AUDIOCHANLEVEL1	; RESET
-_ok1:
+	_ok1:
 
 	; BASS
 	lea	P61_visuctr2(PC),a0;which channel? 0-3
-	LEA	Palette+6,A1
+	LEA	Palette,A1
 	moveq	#15,d0		;maxvalue
 	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
 	bpl.s	.ok2		;below minvalue?
 	moveq	#0,d0		;then set to minvalue
-.ok2:	
+	.ok2:	
 	MOVE.W	D0,AUDIOCHANLEVEL2	; RESET
-	DIVU.W	#$2,D0		; start from a darker shade
+	DIVU.W	#$4,D0		; start from a darker shade
 	MOVE.L	D0,D3
 	ROL.L	#$4,D3		; expand bits to green
 	ADD.L	#1,D3		; makes color a bit geener
 	ADD.L	D3,D0
 	ROL.L	#$4,D3
 	ADD.L	D3,D0		; expand bits to red
-	MOVE.W	D0,(A1)		; poke WHITE color now
-_ok2:
+	MOVE.W	D0,6(A1)		; poke WHITE color now
+	_ok2:
 
 	; GROOVE 1
 	lea	P61_visuctr3(PC),a0;which channel? 0-3
@@ -187,19 +160,22 @@ _ok2:
 	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
 	bpl.s	.ok3		;below minvalue?
 	moveq	#0,d0		;then set to minvalue
-.ok3:	
+	.ok3:	
 	MOVE.W	D0,AUDIOCHANLEVEL3	; RESET
-_ok3:
+	_ok3:
 
 	MOVEM.L (SP)+,D0-A6
 	endc
 	; MOD VISUALIZERS *****
 
+	bsr	WaitBlitter
+	MOVE.L	KONEYBG,DrawBuffer
+
 	;*--- main loop end ---*
 	BTST	#6,$BFE001
 	BNE.S	.DontShowRasterTime
-	MOVE.W	#$0F0,$182(A6)	; show rastertime left down to $12c
-.DontShowRasterTime:
+	MOVE.W	#$0F0,$180(A6)	; show rastertime left down to $12c
+	.DontShowRasterTime:
 	BTST	#2,$DFF016	; POTINP - RMB pressed?
 	BNE.W	MainLoop		; then loop
 	;*--- exit ---*
@@ -212,7 +188,8 @@ _ok3:
 ;********** Demo Routines **********
 
 PokePtrs:				;Generic, poke ptrs into copper list
-.bpll:	move.l	a0,d2
+	.bpll:	
+	move.l	a0,d2
 	swap	d2
 	move.w	d2,(a1)		;high word of address
 	move.w	a0,4(a1)		;low word of address
@@ -238,24 +215,36 @@ VBint:				; Blank template VERTB interrupt
 	moveq	#$20,d0		; poll irq bit
 	move.w	d0,$9c(a6)
 	move.w	d0,$9c(a6)
-.notvb:	movem.l	(sp)+,d0/a6	; restore
+	.notvb:	
+	movem.l	(sp)+,d0/a6	; restore
 	rte
+
+__InitCopperPalette:
+	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
+	LEA.L	PALETTEBUFFERED,A2
+	LEA.L	Palette,A3
+	MOVE.L	#15,D0
+	.FillLoop:
+	MOVE.L	(A2)+,(A3)+
+	DBRA	D0,.FillLoop
+	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
+	RTS
 
 ; THIS ROUTINE WILL POPULATE A GRAPHIC AREA WITH ANY DATA FROM MEMORY
 ; NEEDS 3 PARAMS: SOURCE, TARGET, DEPTH (PLANES)
 __FILLGLITCHBG:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
 	MOVE.L	GLITCHER_SRC,A3
-	MOVE.L	GLITCHER_DEST,A4		; SOURCE DATA
+	MOVE.L	GLITCHER_DEST,A4	; SOURCE DATA
 	MOVE.L	GLITCHER_DPH,D1	; UGUALI PER TUTTI I BITPLANE
-.BITPLANESLOOP:
+	.BITPLANESLOOP:
 	CLR	D4
 	MOVE.B	#h-1,D4		; QUANTE LINEE
-.OUTERLOOP:			; NUOVA RIGA
+	.OUTERLOOP:			; NUOVA RIGA
 	CLR	D6
 	MOVE.B	#bpl-1,D6		; RESET D6
 	NOT	D5
-.INNERLOOP:
+	.INNERLOOP:
 	MOVE.B	(A3)+,(A4)+
 	DBRA	D6,.INNERLOOP
 	DBRA	D4,.OUTERLOOP
@@ -263,19 +252,19 @@ __FILLGLITCHBG:
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
-PRINT2X:
+__PRINT2X:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
 	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
 	MOVE.W	DISPLACEINDEX,D7
 	MOVE.L	KONEYBG,A4
 	LEA	DISPLACETABLE,A3
 	LEA	PATCH,A0
-.OUTERLOOP:
+	.OUTERLOOP:
 	LEA	KONEY2X,A5
 	MOVEQ	#0,D6		; RESET D6
 	MOVE.B	#9,D6			
 	ADD.W	#POS_TOP,A4	; POSITIONING
-.INNERLOOP:
+	.INNERLOOP:
 	ADD.W	#POS_LEFT,A4	; POSITIONING
 	MOVE.L	(A0)+,D2		; SALVO SFONDO
 	MOVE.L	(A5)+,D3		
@@ -301,16 +290,16 @@ PRINT2X:
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
-CREAPATCH:
+__CREAPATCH:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
 	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
 	MOVE.L	KONEYBG,A4
 	LEA	PATCH,A5
-.OUTERLOOP:
+	.OUTERLOOP:
 	MOVEQ	#0,D6		; RESET D6
 	MOVE.B	#9,D6
 	ADD.W	#POS_TOP,A4	; POSITIONING
-.INNERLOOP:
+	.INNERLOOP:
 	ADD.W	#POS_LEFT,A4	; POSITIONING
 	MOVE.L	(A4),(A5)+	
 	ADD.W	#POS_MID,A4	; POSITIONING
@@ -322,15 +311,15 @@ CREAPATCH:
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
-CREATESCROLLSPACE:
+__CREATESCROLLSPACE:
 	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
 	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
 	MOVE.L	KONEYBG,A4
-.OUTERLOOP:
+	.OUTERLOOP:
 	MOVEQ	#0,D6		; RESET D6
 	MOVE.B	#10*11-1,D6
 	ADD.W	#POS_TOP+BAND_OFFSET,A4	; POSITIONING
-.INNERLOOP:
+	.INNERLOOP:
 	MOVE.L	#0,(A4)+	
 	DBRA	D6,.INNERLOOP
 	ADD.W	#POS_BOTTOM-BAND_OFFSET-bpl,A4	; POSITIONING
@@ -338,15 +327,13 @@ CREATESCROLLSPACE:
 	MOVEM.L	(SP)+,D0-D7/A0-A6	; FETCH FROM STACK
 	RTS
 
-BLITINPLACE:
+__BLITINPLACE:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
 	MOVE.L	KONEYBG,A4
 	ADD.W	#bltoffs+40,A4
 
 	BTST.B	#6,DMACONR	; for compatibility
-.WBlit:
-	BTST.B	#6,DMACONR
-	BNE.S	.Wblit
+	bsr	WaitBlitter
 
 	MOVE.L	A4,BLTDPTH
 	MOVE.W	#$FFFF,BLTAFWM	; BLTAFWM lo spiegheremo dopo
@@ -369,12 +356,10 @@ BLITINPLACE:
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
-SHIFTTEXT:
+__SHIFTTEXT:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
 	BTST.B	#6,DMACONR	; for compatibility
-.WBlit:
-	BTST.B	#6,DMACONR
-	BNE.S	.Wblit
+	bsr	WaitBlitter
 
 	MOVE.W	#$FFFF,BLTAFWM	; BLTAFWM lo spiegheremo dopo
 	MOVE.W	#$FFFF,BLTALWM	; BLTALWM lo spiegheremo dopo
@@ -405,7 +390,7 @@ SHIFTTEXT:
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
-POPULATETXTBUFFER:
+__POPULATETXTBUFFER:
 	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
 	MOVE.W	FRAMESINDEX,D7
 	CMP.W	#4,D7
@@ -418,14 +403,14 @@ POPULATETXTBUFFER:
 	CMP.L	#_TEXT,A6	; Siamo arrivati all'ultima word della TAB?
 	BNE.S	.PROCEED
 	MOVE.W	#0,TEXTINDEX	; Riparti a puntare dalla prima word
-.PROCEED:
+	.PROCEED:
 	MOVE.B	(A6),D2		; Prossimo carattere in d2
 	SUB.B	#$20,D2		; TOGLI 32 AL VALORE ASCII DEL CARATTERE, IN
 	MULU.W	#8,D2		; MOLTIPLICA PER 8 IL NUMERO PRECEDENTE,
 	ADD.W	D2,A5
 	MOVEQ	#0,D6		; RESET D6
 	MOVE.B	#8-1,D6
-.LOOP:
+	.LOOP:
 	ADD.W	#38,A4		; POSITIONING
 	MOVE.B	(A5)+,(A4)+
 	;ADD.W	#1,A4		; POSITIONING
@@ -433,14 +418,14 @@ POPULATETXTBUFFER:
 	MOVE.B	#%00000000,(A4)+
 	;ADD.W	#2,A4		; POSITIONING
 	DBRA	D6,.LOOP
-.SKIP:
+	.SKIP:
 	SUB.W	#1,D7
 	CMP.W	#0,D7
 	BEQ.W	.RESET
 	MOVE.W	D7,FRAMESINDEX
 	MOVEM.L	(SP)+,D0-D7/A0-A6	; FETCH FROM STACK
 	RTS
-.RESET:
+	.RESET:
 	ADD.W	#1,TEXTINDEX
 	MOVE.W	#4,D7
 	MOVE.W	D7,FRAMESINDEX	; OTTIMIZZABILE
@@ -465,49 +450,67 @@ __CYCLEPALETTE:
 	MOVE.W	D0,BPLCOLORINDEX
 	MOVEM.L	(SP)+,D0-A6		; FETCH FROM STACK
 	RTS
-.RESET:
-	MOVE.W	#6,BPLCOLORINDEX
-	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
-	BRA.S	__CYCLEPALETTE
+	.RESET:
+	;MOVE.W	#6,BPLCOLORINDEX
+	;MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
+	;BRA.S	__CYCLEPALETTE
 
-DITHERBGPLANE:
+__DITHERBGPLANE:
 	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
 	MOVE.L	KONEYBG,A3	; Indirizzo del bitplane destinazione in a3
 	;ADD.W	#10239,A3		; NEXT BITPLANE (?)
-	CLR	D4
-	MOVE.B	#255,D4		; QUANTE LINEE
-	;MOVE.L	#%10101010101010101010101010101010,D5
-OUTERLOOP:			; NUOVA RIGA
+	CLR	D2
+	MOVE.L	DITHERFRAMEBOOL,D2
+	NOT	D2
+	MOVE.L	D2,DITHERFRAMEBOOL
+	MOVE.L	#31,D4		; QUANTE LINEE
+	.OUTERLOOP:		; NUOVA RIGA
 	;MOVE.W	#0,D5		; RESET
-	MOVE.L	#%10101010101010101010101010101010,D5	; RESET
-	MOVE.W	AUDIOCHANLEVEL3,D1
-	CMPI.W	#0,D1		; BEWARE RND ROUTINE WILL RESET D1
-	BEQ.S	_nornd
-	BSR.S	_RandomByte
-_nornd:
-	; TODO some EOR with audiochannel level to make fx "follow" volume a bit
-	CLR	D6
-	MOVE.B	#39,D6		; RESET D6
-	;LSR.L	#3,D5
-INNERLOOP:	; LOOP KE CICLA LA BITMAP
+	;MOVE.L	(A3),D5		; RESET
+	;MOVE.L	#%10101010101010101010101010101010,D5	; RESET
+	;MOVE.W	AUDIOCHANLEVEL3,D1
+	;CMPI.W	#0,D1		; BEWARE RND ROUTINE WILL RESET D1
+	;BEQ.S	.nornd
 
-	MOVE.B	D5,(A3)+
+	btst.l	#0,D2
+	bne.s	.noteven
+	;NOP
+	ADD.L	#160,A3		; JUMP ONE LINE
+	.noteven:
+
+	move.b	$dff007,d5	;$dff00a $dff00b for mouse pos
+	move.b	$bfd800,d1
+	eor.b	d1,d5
+	ror.L	#8,d5
+
+	;MOVE.W	$BFD800,D5
+	;SWAP	D5
+	;MOVE.B	$DFF007,D5	;$DFF00A $DFF00B FOR MOUSE POS
+	;.nornd:
+	; TODO some EOR with audiochannel level to make fx "follow" volume a bit
+	;CLR	D6
+	MOVEQ.L	#9,D6		; RESET D6
+	;LSR.L	#3,D5
+	.INNERLOOP:	; LOOP KE CICLA LA BITMAP
+	;MOVE.B	(A3),D2	; NICE FX!
+	;EOR.B	D2,D5	; NICE FX!
+	MOVE.L	D5,(A3)+
+	NOT	D5
+	MOVE.L	D5,(A3)+
+	ROL.L	#6,D5	
+	MOVE.L	D5,(A3)+
+	SWAP	D5
+	MOVE.L	D5,(A3)+
 	;NOT	D5
 	;ADD.W	#2,A3
 	;LSL.L	#1,D5
-	DBRA	D6,INNERLOOP
-	DBRA	D4,OUTERLOOP
+	DBRA	D6,.INNERLOOP
+	DBRA	D4,.OUTERLOOP
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
-_RandomWord:	bsr	_RandomByte
-		rol.w	#8,d5
-_RandomByte:	move.b	$dff007,d5;$dff00a $dff00b for mouse pos
-		move.b	$bfd800,d1
-		eor.b	d1,d5
-		rts
-
 	;********** Fastmem Data **********
+DITHERFRAMEBOOL:	DC.L 1
 GLITCHER_SRC:	DC.L 0
 GLITCHER_DEST:	DC.L 0
 GLITCHER_DPH:	DC.L 0
@@ -532,13 +535,19 @@ DISPLACETABLE:
 	DC.W 0,0,0,0,3,0,0,0,0,1,0,0,0,2,1,0
 	DC.W 1,3,0,2,0,0,0,3,2,0,4,0,1,0,7,0
 
-COLORSINDEX:	DC.W 0
-COLORSTABLE:
-	DC.W $000F,$0EEE,$0DDD,$0CCC,$0BBB,$0AAA,$0999,$0888
-	DC.W $0777,$0666,$0555,$0444,$0333,$0222,$0111,$0000
+;COLORSINDEX:	DC.W 0
+;COLORSTABLE:
+	;DC.W $000F,$0EEE,$0DDD,$0CCC,$0BBB,$0AAA,$0999,$0888
+	;DC.W $0777,$0666,$0555,$0444,$0333,$0222,$0111,$0000
+
+PALETTEBUFFERED:
+	DC.W $0180,$0000,$0182,$0000,$0184,$0111,$0186,$0122
+	DC.W $0188,$0333,$018A,$0444,$018C,$0555,$018E,$0455
+	DC.W $0190,$0666,$0192,$0888,$0194,$0999,$0196,$0AAA
+	DC.W $0198,$09AA,$019A,$0FFF,$019C,$0FFF,$019E,$0FFF
 
 BUFFEREDCOLOR:	DC.W $0000
-BPLCOLORINDEX:	DC.W 6
+BPLCOLORINDEX:	DC.W 10
 
 PATCH:		DS.B 10*64*bpls	;I need a buffer to save trap BG
 
@@ -557,9 +566,11 @@ _TXTSCROLLBUF:
 
 FRAMESINDEX:	DC.W 4
 
-BG1:	INCBIN	"glitchditherbg8_320256_3.raw"
-BG2:	INCBIN	"dithermirrorbg_3.raw"
-;BG32:	INCBIN	"glitchditherbg1_320256_3.raw"
+BG1:	INCBIN	"BG_KONEY_320256_4.raw"
+;BG1:	INCBIN	"glitchditherbg9_320256_3.raw"
+	;INCBIN	"dithermirrorbg_3.raw"
+	;INCBIN	"glitchditherbg1_320256_3.raw"
+;BG3:	INCBIN	"glitchditherbg1_320256_3.raw"
 ;BG4:	INCBIN	"glitchditherbg9_320256_3.raw"
 
 FONT:	DC.L	0,0	; SPACE CHAR
@@ -591,14 +602,10 @@ Copper:
 	DC.W $102,0	;SCROLL REGISTER (AND PLAYFIELD PRI)
 
 Palette:			;Some kind of palette (3 bpls=8 colors)
-	DC.W $0180,$0000
-	DC.W $0182,$0333
-	DC.W $0184,$0444
-	DC.W $0186,$0555
-	DC.W $0188,$0666
-	DC.W $018A,$0777
-	DC.W $018C,$0888
-	DC.W $018E,$0FFF
+	DC.W $0180,0,$0182,0,$0184,0,$0186,0
+	DC.W $0188,0,$018A,0,$018C,0,$018E,0
+	DC.W $0190,0,$0192,0,$0194,0,$0196,0
+	DC.W $0198,0,$019A,0,$019C,0,$019e,0
 
 BplPtrs:
 	DC.W $E0,0
