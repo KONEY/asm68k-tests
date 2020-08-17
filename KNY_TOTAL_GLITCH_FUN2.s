@@ -90,9 +90,6 @@ MainLoop:
 	move.l	a2,a1
 	;bsr	ClearScreen
 
-	bsr	WaitBlitter
-	MOVE.L	KONEYBG,DrawBuffer
-
 	; do stuff here :)
 	BSR.W	__SET_PT_VISUALS
 
@@ -101,7 +98,7 @@ MainLoop:
 	MOVE.W	AUDIOCHANLEVEL3,D2
 	CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
 	BEQ.S	_noglitch1
-	MOVE.W	#0,GLITCHOFFSET
+	MOVE.W	#20480,GLITCHOFFSET
 	BSR.W	__DITHERBGPLANE	; THIS NEEDS OPTIMIZING
 	_noglitch1:
 
@@ -123,6 +120,9 @@ MainLoop:
 	BSR.W	__BLITINPLACE		; FIRST BLITTATA
 	BSR.W	__SHIFTTEXT		; SHIFT DATI BUFFER?
 	BSR.W	__POPULATETXTBUFFER	; PUT SOMETHING
+
+	bsr	WaitBlitter
+	MOVE.L	KONEYBG,DrawBuffer
 
 	;*--- main loop end ---*
 	BTST	#6,$BFE001
@@ -464,7 +464,7 @@ __CYCLEPALETTE:
 	.DONTRESET2:
 	ADD.W	#4,D0
 	MOVE.W	(A1,D0.W),BUFFEREDCOLOR	; PEEK THE COPPER	
-	MOVE.W	#$0AAA,(A1,D0.W)		; POKE THE COPPER
+	MOVE.W	#$0FFF,(A1,D0.W)		; POKE THE COPPER
 	MOVE.W	#$0000,2(A1)		; ALWAYS CLEAR BG
 	ADD.W	#4,D0
 	MOVE.W	D0,BPLCOLORINDEX
@@ -475,7 +475,7 @@ __CYCLEPALETTE:
 
 __DITHERBGPLANE:
 	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
-	MOVE.L	KONEYBG,A3	; Indirizzo del bitplane destinazione in a3
+	MOVE.L	KONEYBG,-40(A3)	; Indirizzo del bitplane destinazione in a3
 	ADD.W	GLITCHOFFSET,A3	; NEXT BITPLANE (?)
 
 	;CLR	D2
@@ -499,7 +499,7 @@ __DITHERBGPLANE:
 	MOVE.L	D5,(A3)+
 	;NOT	D5
 	DBRA	D6,.INNERLOOP
-	ADD.L	#300,A3		; JUMP ONE LINE
+	ADD.L	#$2FE,A3		; JUMP ONE LINE
 
 	DBRA	D4,.OUTERLOOP
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
@@ -640,8 +640,7 @@ Module1:	INCBIN	"FatalDefrag_v3.P61"	; code $9104
 	SECTION ChipBuffers,BSS_C	;BSS doesn't count toward exe size
 ;*******************************************************************************
 
-SCREEN1:		DS.B h*bwid	;Define storage for buffer 1
-SCREEN2:		DS.B h*bwid	;two buffers
-;GLITCHBUFFER:	DS.B h*bwid	; some free space to avoid glitch
+SCREEN1:	DS.B h*bwid	;Define storage for buffer 1
+SCREEN2:	DS.B h*bwid	;two buffers
 
 	END
