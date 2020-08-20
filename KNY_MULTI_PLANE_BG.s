@@ -110,8 +110,8 @@ MainLoop:
 	MOVE.W	AUDIOCHANLEVEL0,D2
 	CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
 	BEQ.S	_noglitch2
-	MOVE.W	#20480,GLITCHOFFSET
-	BSR.W	__DITHERBGPLANE	; THIS NEEDS OPTIMIZING
+	MOVE.W	#10240,GLITCHOFFSET
+	BSR.W	__BLIT_GLITCH_PLANE	; THIS NEEDS OPTIMIZING
 	_noglitch2:
 
 	;MOVE.W	AUDIOCHANLEVEL1,D2
@@ -122,7 +122,7 @@ MainLoop:
 	;_noflash:
 
 	BSR.W	__PRINT2X
-	BSR.W	__CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
+	;BSR.W	__CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
 	BSR.W	__BLITINPLACE		; FIRST BLITTATA
 	BSR.W	__SHIFTTEXT		; SHIFT DATI BUFFER?
 	BSR.W	__POPULATETXTBUFFER	; PUT SOMETHING
@@ -156,21 +156,29 @@ __SET_PT_VISUALS:
 	.ok0:	
 	MOVE.W	D0,AUDIOCHANLEVEL0	; RESET
 	_ok0:
-
+	LEA	Palette,A1
 	; KICKDRUM
 	lea	P61_visuctr1(PC),a0;which channel? 0-3
-	moveq	#22,d0		;maxvalue
+	moveq	#15,d0		;maxvalue
 	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
 	bpl.s	.ok1		;below minvalue?
 	moveq	#0,d0		;then set to minvalue
 	MOVE.W	#$A,BPLCOLORINDEX	; FOR TIMING
-	.ok1:	
+	.ok1:
 	MOVE.W	D0,AUDIOCHANLEVEL1	; RESET
+	DIVU.W	#$3,D0		; start from a darker shade
+	MOVE.L	D0,D3
+	ROL.L	#$4,D3		; expand bits to green
+	;ADD.L	#1,D3		; makes color a bit geener
+	ADD.L	D3,D0
+	ROL.L	#$4,D3
+	ADD.L	D3,D0		; expand bits to red
+	MOVE.W	D0,2(A1)		; poke WHITE color now
 	_ok1:
 
 	; BASS
 	lea	P61_visuctr2(PC),a0;which channel? 0-3
-	LEA	Palette,A1
+
 	moveq	#15,d0		;maxvalue
 	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
 	bpl.s	.ok2		;below minvalue?
@@ -184,6 +192,7 @@ __SET_PT_VISUALS:
 	ADD.L	D3,D0
 	ROL.L	#$4,D3
 	ADD.L	D3,D0		; expand bits to red
+
 	MOVE.W	D0,6(A1)		; poke WHITE color now
 	_ok2:
 
@@ -321,7 +330,7 @@ __PRINT2X:
 
 	MOVE.L	(A0)+,D2		; SALVO SFONDO
 	MOVE.L	(A5)+,D3		
-	LSR.L	D5,D3		; GLITCH
+	ROL.L	D5,D3		; GLITCH
 	EOR.L	D2,D3		; KOMBINO SFONDO+SKRITTA
 	MOVE.L	D3,(A4)		
 	ADD.W	#POS_RIGHT,A4	; POSITIONING
@@ -372,6 +381,7 @@ __CREATESCROLLSPACE:
 __BLITINPLACE:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
 	MOVE.L	KONEYBG,A4
+	ADD.W	#30720,A4	; NEXT BITPLANE (?)
 	ADD.W	#bltoffs+40,A4
 
 	BTST.B	#6,DMACONR	; for compatibility
@@ -538,6 +548,7 @@ __DITHERBGPLANE:
 __BLIT_GLITCH_PLANE:
 	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
 	MOVE.L	KONEYBG,A4
+	ADD.W	GLITCHOFFSET,A4	; NEXT BITPLANE (?)
 	MOVE.W	BLITPLANEOFFSET,D0
 	MOVE.W	D0,D2
 	ADD.W	#1,D2		; INCREMENTO INDICE TAB
@@ -617,11 +628,10 @@ _TXTSCROLLBUF:
 
 FRAMESINDEX:	DC.W 4
 
-BG1:	INCBIN	"PlasmaBG320356_4.raw"
-;BG1:	INCBIN	"glitchditherbg9_320256_3.raw"
-	;INCBIN	"dithermirrorbg_3.raw"
-	;INCBIN	"glitchditherbg1_320256_3.raw"
-;BG3:	INCBIN	"glitchditherbg1_320256_3.raw"
+BG1:	INCBIN	"onePlane_4.raw"
+	INCBIN	"onePlane_3.raw"
+	INCBIN	"onePlane_1.raw"
+	INCBIN	"onePlane_2.raw"
 
 FONT:	DC.L	0,0	; SPACE CHAR
 	INCBIN	"scummfnt_8x752.raw",0
@@ -673,19 +683,19 @@ BplPtrs:
 	DC.W $100,BPLS*$1000+$200	;enable bitplanes
 
 COPPERWAITS:
-	DC.W $FE07,$FFFE
-	DC.W $0180,$0FFF
-	DC.W $FF07,$FFFE
-	DC.W $0180,$0011	; SCROLLAREA BG COLOR
-	DC.W $0182,$0AAA	; SCROLLING TEXT WHITE ON
+	;DC.W $FE07,$FFFE
+	;DC.W $0180,$0FFF
+	;DC.W $FF07,$FFFE
+	;DC.W $0180,$0011	; SCROLLAREA BG COLOR
+	;DC.W $0182,$0AAA	; SCROLLING TEXT WHITE ON
 
 	DC.W $FFDF,$FFFE	; allow VPOS>$ff
 
-	DC.W $0807,$FFFE
-	DC.W $0180,$0FFF
-	DC.W $0907,$FFFE
-	DC.W $0180,$0000
-	DC.W $0182,$0333	; SCROLLING TEXT WHITE OFF
+	;DC.W $0807,$FFFE
+	;DC.W $0180,$0FFF
+	;DC.W $0907,$FFFE
+	;DC.W $0180,$0000
+	;DC.W $0182,$0333	; SCROLLING TEXT WHITE OFF
 
 	DC.W $FFFF,$FFFE	;magic value to end copperlist
 _Copper:

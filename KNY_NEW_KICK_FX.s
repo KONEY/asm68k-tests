@@ -157,6 +157,7 @@ __SET_PT_VISUALS:
 	MOVE.W	D0,AUDIOCHANLEVEL0	; RESET
 	_ok0:
 
+	LEA	Palette,A1
 	; KICKDRUM
 	lea	P61_visuctr1(PC),a0;which channel? 0-3
 	moveq	#22,d0		;maxvalue
@@ -166,11 +167,19 @@ __SET_PT_VISUALS:
 	MOVE.W	#$A,BPLCOLORINDEX	; FOR TIMING
 	.ok1:	
 	MOVE.W	D0,AUDIOCHANLEVEL1	; RESET
+	DIVU.W	#$4,D0		; start from a darker shade
+	ADD.W	#2,D0
+	MOVE.L	D0,D3
+	ROL.L	#$4,D3		; expand bits to green
+	;ADD.L	#1,D3		; makes color a bit geener
+	ADD.L	D3,D0
+	ROL.L	#$4,D3
+	ADD.L	D3,D0		; expand bits to red
+	MOVE.W	D0,14(A1)		; poke WHITE color now
 	_ok1:
 
 	; BASS
 	lea	P61_visuctr2(PC),a0;which channel? 0-3
-	LEA	Palette,A1
 	moveq	#15,d0		;maxvalue
 	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
 	bpl.s	.ok2		;below minvalue?
@@ -617,7 +626,7 @@ _TXTSCROLLBUF:
 
 FRAMESINDEX:	DC.W 4
 
-BG1:	INCBIN	"PlasmaBG320356_4.raw"
+BG1:	INCBIN	"BG_KONEY_320256_4.raw"
 ;BG1:	INCBIN	"glitchditherbg9_320256_3.raw"
 	;INCBIN	"dithermirrorbg_3.raw"
 	;INCBIN	"glitchditherbg1_320256_3.raw"

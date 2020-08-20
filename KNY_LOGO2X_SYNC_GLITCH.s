@@ -159,7 +159,7 @@ __SET_PT_VISUALS:
 
 	; KICKDRUM
 	lea	P61_visuctr1(PC),a0;which channel? 0-3
-	moveq	#22,d0		;maxvalue
+	moveq	#14,d0		;maxvalue
 	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
 	bpl.s	.ok1		;below minvalue?
 	moveq	#0,d0		;then set to minvalue
@@ -297,7 +297,6 @@ _RandomByte:	move.b	$dff007,d5	;$dff00a $dff00b for mouse pos
 __PRINT2X:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
 	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
-	MOVE.W	DISPLACEINDEX,D7
 	MOVE.L	KONEYBG,A4
 	LEA	DISPLACETABLE,A3
 	LEA	PATCH,A0
@@ -307,28 +306,39 @@ __PRINT2X:
 	MOVE.B	#9,D6			
 	ADD.W	#POS_TOP,A4	; POSITIONING
 	.INNERLOOP:
+	MOVE.W	DISPLACEINDEX,D7
 	ADD.W	#POS_LEFT,A4	; POSITIONING
 	MOVE.L	(A0)+,D2		; SALVO SFONDO
 	MOVE.L	(A5)+,D3		
 	MOVE.L	(A3,D7.W),D5	; FX 1
 	ADD.W	#2,D7		; INCREMENTO INDICE TAB
 	AND.W	#256-1,D7		; AND TIRA FUORI SEMPRE FINO A X E POI WRAPPA
+	MOVE.W	D7,DISPLACEINDEX
+
+	;CLR.L	D7
+	MOVE.W	AUDIOCHANLEVEL1,D7
+	CMPI.W	#0,D7
+	BEQ.S	.dontglitch1
 	ROL.L	D5,D3		; GLITCH
+	.dontglitch1:
 
 	EOR.L	D2,D3		; KOMBINO SFONDO+SKRITTA
 	MOVE.L	D3,(A4)		
 	ADD.W	#POS_MID,A4	; POSITIONING
 
 	MOVE.L	(A0)+,D2		; SALVO SFONDO
-	MOVE.L	(A5)+,D3		
+	MOVE.L	(A5)+,D3
+	CMPI.W	#0,D7
+	BEQ.S	.dontglitch2	
 	LSR.L	D5,D3		; GLITCH
+	.dontglitch2:
+
 	EOR.L	D2,D3		; KOMBINO SFONDO+SKRITTA
 	MOVE.L	D3,(A4)		
 	ADD.W	#POS_RIGHT,A4	; POSITIONING
 	DBRA	D6,.INNERLOOP
 	ADD.W	#POS_BOTTOM,A4	; POSITIONING
 	DBRA	D1,.OUTERLOOP
-	MOVE.W	D7,DISPLACEINDEX
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
@@ -617,7 +627,7 @@ _TXTSCROLLBUF:
 
 FRAMESINDEX:	DC.W 4
 
-BG1:	INCBIN	"PlasmaBG320356_4.raw"
+BG1:	INCBIN	"BG_KONEY_320256_4.raw"
 ;BG1:	INCBIN	"glitchditherbg9_320256_3.raw"
 	;INCBIN	"dithermirrorbg_3.raw"
 	;INCBIN	"glitchditherbg1_320256_3.raw"
