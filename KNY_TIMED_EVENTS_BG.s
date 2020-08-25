@@ -1,4 +1,3 @@
-;*** WITH GLITCH FROM RAM ZONES
 ;*** MiniStartup by Photon ***
 	INCDIR	"NAS:AMIGA/CODE/KONEY/"
 	SECTION	"Code+PT12",CODE
@@ -12,19 +11,16 @@ h=256
 bpls=4		;handy values:
 bpl=w/16*2	;byte-width of 1 bitplane line (40)
 bwid=bpls*bpl	;byte-width of 1 pixel line (all bpls)
-
 POS_TOP=124*bpl
 POS_LEFT=16
 POS_MID=4
 POS_RIGHT=20
 POS_BOTTOM=122*bpl
 BAND_OFFSET=86*bpl
-
 ;BLITTER CONSTANTS
 bltx	=0
 ;blty	=0
 bltoffs	=210*(w/8)+bltx/8
-
 ;blth	=12
 ;bltw	=320/16
 ;bltskip	=(320-320)/8
@@ -70,18 +66,20 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
 
 	;---  Call P61_Init  ---
-	MOVEM.L D0-A6,-(SP)
-	lea Module1,a0
-	sub.l a1,a1
-	sub.l a2,a2
-	moveq #0,d0
-	jsr P61_Init
+	MOVEM.L	D0-A6,-(SP)
+	lea	Module1,a0
+	sub.l	a1,a1
+	sub.l	a2,a2
+	moveq	#0,d0
+	;MOVE.W	#20,P61_InitPos	; TRACK START OFFSET
+	jsr	P61_Init
 	MOVEM.L (SP)+,D0-A6
 
 	MOVE.L	#Copper,$80(a6)
 
 ;********************  main loop  ********************
 MainLoop:
+
 	move.w	#$12c,d0		;No buffering, so wait until raster
 	bsr.w	WaitRaster	;is below the Display Window.
 	;*--- swap buffers ---*
@@ -106,33 +104,58 @@ MainLoop:
 
 	; do stuff here :)
 
+	;---  change position  ---
+	MOVE.W	P61_Pos,D5
+	CMP.W	#1,D5		; seqeunce block position
+	BNE.S	.dontJump	; then switch
+	MOVEM.L	D0-A6,-(SP)
+	MOVE.W	#$F00,$180(A6)	; show rastertime left down to $12c
+	MOVEQ	#36-1,d0
+	JSR	P61_SetPosition
+	MOVEM.L (SP)+,D0-A6
+	.dontJump:
+
+	; TRIG BG SCROLL
+	MOVE.W	#0,BGISSHIFTING
+	MOVE.W	P61_Pos,D5
+	CMP.W	#41-1,D5		; seqeunce block position
+	BLS.S	.dontScroll	; then switch
+	CLR	D5
+	MOVE.W	BGSHIFTCOUNTER,D5
+	CMP.W	#0,D5		; seqeunce block position
+	BEQ.S	.dontScroll	; then switch
+	MOVE.W	#0,AUDIOCHANLEVEL0
+	MOVE.W	#0,AUDIOCHANLEVEL3
+	SUB.W	#1,BGSHIFTCOUNTER
+	MOVE.W	#1,BGISSHIFTING
+	ADD.L	#bwid*2,KONEYBG	; SCROLL 1PX UP
+	BSR.W	__CREAPATCH	; FILL THE BUFFER
+	.dontScroll:
+	; TRIG BG SCROLL
+
 	MOVE.W	AUDIOCHANLEVEL0,D2	; GROOVE 2
 	CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
 	BEQ.S	_noglitch2
 	MOVE.W	#10240,GLITCHOFFSET
-	BSR.W	__BLIT_GLITCH_PLANE	; THIS NEEDS OPTIMIZING
+	BSR.W	__BLIT_GLITCH_PLANE; THIS NEEDS OPTIMIZING
 	_noglitch2:
 
 	MOVE.W	AUDIOCHANLEVEL3,D2	; GROOVE 1
 	CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
 	BEQ.S	_noglitch1
 	MOVE.W	#0,GLITCHOFFSET
-	BSR.W	__DITHERBGPLANE; THIS NEEDS OPTIMIZING
+	BSR.W	__DITHERBGPLANE	; THIS NEEDS OPTIMIZING
 	_noglitch1:
 
-	;MOVE.W	AUDIOCHANLEVEL1,D2
-	;CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
-	;BEQ.S	_noflash
-	;BSR.W	__InitCopperPalette
-	;BSR.W	__CYCLEPALETTE
-	;_noflash:
-
+	MOVE.W	BGISSHIFTING,D5
+	CMP.W	#1,D5		; seqeunce block position
+	BEQ.S	.dontPlotObjects	; then switch
 	BSR.W	__PRINT2X
-	BSR.W	__BLITINPLACE		; FIRST BLITTATA
-	BSR.W	__SHIFTTEXT		; SHIFT DATI BUFFER?
-	BSR.W	__POPULATETXTBUFFER	; PUT SOMETHING
-
-	;ADD.L	#bwid,KONEYBG		; SCROLL 1PX UP
+	MOVE.L	#bpls-1,KONEYLOGO_DPH; RESTORE BITPLANE
+	BSR.W	__BLITINPLACE	; FIRST BLITTATA
+	BSR.W	__SHIFTTEXT	; SHIFT DATI BUFFER?
+	BSR.W	__POPULATETXTBUFFER; PUT SOMETHING
+	.dontPlotObjects:
 
 	;*--- main loop end ---*
 	BTST	#6,$BFE001
@@ -147,29 +170,31 @@ MainLoop:
 	JSR P61_End
 	MOVEM.L (SP)+,D0-A6
 	RTS
-;********** Demo Routines **********
 
+;********** Demo Routines **********
 __SET_PT_VISUALS:
 	; MOD VISUALIZERS *****
 	ifne visuctrs
 	MOVEM.L D0-A6,-(SP)
 
 	; GROOVE 2
-	lea	P61_visuctr0(PC),a0;which channel? 0-3
-	moveq	#14,d0		;maxvalue
-	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
-	bpl.s	.ok0		;below minvalue?
-	moveq	#0,d0		;then set to minvalue
+	lea	P61_visuctr0(PC),a0; which channel? 0-3
+	moveq	#14,d0		; maxvalue
+	sub.w	(a0),d0		; -#frames/irqs since instrument trigger
+	bpl.s	.ok0		; below minvalue?
+	moveq	#0,d0		; then set to minvalue
 	.ok0:	
 	MOVE.W	D0,AUDIOCHANLEVEL0	; RESET
 	_ok0:
+
 	LEA	Palette,A1
+
 	; KICKDRUM
-	lea	P61_visuctr1(PC),a0;which channel? 0-3
-	moveq	#15,d0		;maxvalue
-	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
-	bpl.s	.ok1		;below minvalue?
-	moveq	#0,d0		;then set to minvalue
+	lea	P61_visuctr1(PC),a0; which channel? 0-3
+	moveq	#15,d0		; maxvalue
+	sub.w	(a0),d0		; -#frames/irqs since instrument trigger
+	bpl.s	.ok1		; below minvalue?
+	moveq	#0,d0		; then set to minvalue
 	MOVE.W	#$A,BPLCOLORINDEX	; FOR TIMING
 	.ok1:
 	MOVE.W	D0,AUDIOCHANLEVEL1	; RESET
@@ -183,13 +208,12 @@ __SET_PT_VISUALS:
 	MOVE.W	D0,2(A1)		; poke WHITE color now
 	_ok1:
 
-
-	lea	P61_visuctr2(PC),a0;which channel? 0-3
 	; BASS
-	moveq	#15,d0		;maxvalue
-	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
-	bpl.s	.ok2		;below minvalue?
-	moveq	#0,d0		;then set to minvalue
+	lea	P61_visuctr2(PC),a0; which channel? 0-3
+	moveq	#15,d0		; maxvalue
+	sub.w	(a0),d0		; -#frames/irqs since instrument trigger
+	bpl.s	.ok2		; below minvalue?
+	moveq	#0,d0		; then set to minvalue
 	.ok2:	
 	MOVE.W	D0,AUDIOCHANLEVEL2	; RESET
 	DIVU.W	#$4,D0		; start from a darker shade
@@ -199,16 +223,15 @@ __SET_PT_VISUALS:
 	ADD.L	D3,D0
 	ROL.L	#$4,D3
 	ADD.L	D3,D0		; expand bits to red
-
 	MOVE.W	D0,6(A1)		; poke WHITE color now
 	_ok2:
 
 	; GROOVE 1
-	lea	P61_visuctr3(PC),a0;which channel? 0-3
-	moveq	#14,d0		;maxvalue
-	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
-	bpl.s	.ok3		;below minvalue?
-	moveq	#0,d0		;then set to minvalue
+	lea	P61_visuctr3(PC),a0; which channel? 0-3
+	moveq	#14,d0		; maxvalue
+	sub.w	(a0),d0		; -#frames/irqs since instrument trigger
+	bpl.s	.ok3		; below minvalue?
+	moveq	#0,d0		; then set to minvalue
 	.ok3:	
 	MOVE.W	D0,AUDIOCHANLEVEL3	; RESET
 	_ok3:
@@ -218,7 +241,7 @@ __SET_PT_VISUALS:
 	endc
 	; MOD VISUALIZERS *****
 
-PokePtrs:				;Generic, poke ptrs into copper list
+PokePtrs:				; Generic, poke ptrs into copper list
 	.bpll:	
 	move.l	a0,d2
 	swap	d2
@@ -310,7 +333,7 @@ _RandomByte:	move.b	$dff007,d5	;$dff00a $dff00b for mouse pos
 		rts
 __PRINT2X:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
-	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
+	MOVE.L	KONEYLOGO_DPH,D1	; UGUALI PER TUTTI I BITPLANE
 	MOVE.W	DISPLACEINDEX,D7
 	MOVE.L	KONEYBG,A4
 	LEA	DISPLACETABLE,A3
@@ -326,7 +349,7 @@ __PRINT2X:
 	MOVE.L	(A5)+,D3		
 	MOVE.L	(A3,D7.W),D5	; FX 1
 	ADD.W	#2,D7		; INCREMENTO INDICE TAB
-	AND.W	#256-1,D7		; AND TIRA FUORI SEMPRE FINO A X E POI WRAPPA
+	AND.W	#1024-1,D7	; AND TIRA FUORI SEMPRE FINO A X E POI WRAPPA
 	ROL.L	D5,D3		; GLITCH
 
 	EOR.L	D2,D3		; KOMBINO SFONDO+SKRITTA
@@ -403,7 +426,7 @@ __BLITINPLACE:
 
 	MOVE.L	#TXTSCROLLBUF,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
 
-	MOVE.W	#8*64+320/16,BLTSIZE	; BLTSIZE (via al blitter !)
+	MOVE.W	#9*64+320/16,BLTSIZE	; BLTSIZE (via al blitter !)
 				; adesso, blitteremo una figura di
 				; 2 word X 6 linee con una sola
 				; blittata coi moduli opportunamente
@@ -437,7 +460,7 @@ __SHIFTTEXT:
 	MOVE.L	#_TXTSCROLLBUF-2,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
 	MOVE.L	#_TXTSCROLLBUF-2,BLTDPTH
 
-	MOVE.W	#8*64+320/16,BLTSIZE	; BLTSIZE (via al blitter !)
+	MOVE.W	#9*64+320/16,BLTSIZE	; BLTSIZE (via al blitter !)
 				; adesso, blitteremo una figura di
 				; 2 word X 6 linee con una sola
 				; blittata coi moduli opportunamente
@@ -473,6 +496,7 @@ __POPULATETXTBUFFER:
 	;ADD.W	#1,A4		; POSITIONING
 	;ADD.W	#38,A4		; POSITIONING
 	MOVE.B	#%00000000,(A4)+
+	MOVE.B	#%00000000,(A4)	; WRAPS MORE NICELY?
 	;ADD.W	#2,A4		; POSITIONING
 	DBRA	D6,.LOOP
 	.SKIP:
@@ -582,7 +606,8 @@ DITHERFRAMEOFFSET:	DC.W 0
 GLITCHER_SRC:	DC.L 0
 GLITCHER_DEST:	DC.L 0
 GLITCHER_DPH:	DC.L 0
-
+KONEYLOGO_DPH:	DC.L bpls-1
+ISLOGOFLASHING:	DC.L 0
 AUDIOCHANLEVEL0:	DC.W 0
 AUDIOCHANLEVEL1:	DC.W 0
 AUDIOCHANLEVEL2:	DC.W 0
@@ -594,14 +619,53 @@ ViewBuffer:	DC.L SCREEN1
 
 DISPLACEINDEX:	DC.W 0
 DISPLACETABLE:
-	DC.W 4,3,0,1,0,0,0,0,2,0,0,0,0,3,0,2
-	DC.W 0,0,0,5,0,1,0,0,0,0,3,0,1,0,1
-	DC.W 0,1,0,2,0,0,0,0,0,2,0,3,0,0,6,1
-	DC.W 0,0,0,3,0,0,0,0,3,0,0,7,0,0,0,0
-	DC.W 1,3,5,2,0,1,0,3,0,0,4,0,1,0,7,8
-	DC.W 0,0,3,0,0,0,0,1,4,0,0,0,0,8,1
-	DC.W 2,1,0,1,0,3,0,3,0,0,0,1,2,1,0,0
-	DC.W 0,2,0,0,3,0,0,0,0,1,0,0,0,2,1,4
+	DC.W 0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,3
+	DC.W 1,8,0,3,4,0,0,2,6,0,3,7,1,0,7
+	DC.W 2,4,0,1,0,7,0,6,1,0,2,1,4,6,0,0
+	DC.W 1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0
+	DC.W 0,0,0,3,3,1,1,0,3,0,0,7,0,0,0,0
+	DC.W 1,2,5,2,0,1,0,1,0,2,4,0,3,0,2,1
+	DC.W 0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1
+	DC.W 1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0
+
+	DC.W 0,3,6,2,7,0,2,0,1,0,0,1,0,5,0,1
+	DC.W 0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1
+	DC.W 1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0
+	DC.W 0,1,5,2,0,8,1,6,0,2,4,3,0,1,6,3
+	DC.W 0,0,0,3,3,1,1,0,3,0,0,7,0,0,0,0
+	DC.W 1,2,5,2,0,1,0,1,0,2,4,0,3,0,2,1
+	DC.W 0,0,3,6,0,0,0,1,6,0,0,8,0,4,1
+	DC.W 2,1,0,1,0,2,0,3,2,0,0,1,2,1,0,3
+
+	DC.W 0,1,5,2,0,2,1,0,0,2,4,3,0,0,6,1
+	DC.W 0,8,0,3,0,0,1,0,3,0,0,7,0,0,0,6
+	DC.W 0,1,0,2,0,0,1,0,3,2,0,3,0,6,7,1
+	DC.W 0,0,8,3,0,0,0,0,3,0,0,7,0,0,0,0
+	DC.W 1,3,0,5,0,1,0,3,0,0,2,0,1,0,2,1
+	DC.W 0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1
+	DC.W 1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0
+	DC.W 0,2,0,0,3,0,0,2,0,1,0,0,0,2,1,0
+
+	DC.W 0,3,6,2,7,0,2,4,1,0,0,1,0,5,0,1
+	DC.W 1,2,0,3,4,0,0,2,6,0,3,6,1,0,7
+	DC.W 0,1,0,1,0,1,0,1,0,1,0,1,0,2,0,1
+	DC.W 1,0,1,3,1,0,1,0,1,0,1,0,1,0,1,0
+	DC.W 0,0,0,5,0,1,0,1,0,0,3,0,1,0,1
+	DC.W 1,3,0,2,0,1,2,3,0,2,4,0,4,0,2,0
+	DC.W 0,0,3,0,0,0,0,3,8,0,0,1,0,4,1
+	DC.W 1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0
+
+	DC.W 7,1,7,1,0,1,5,6,4,0,0,6,0,1,0,0
+	DC.W 0,0,0,5,0,1,0,1,0,0,3,0,1,0,1
+	DC.W 0,1,0,2,0,1,0,0,0,2,0,2,0,6,7,1
+	DC.W 1,2,3,4,5,6,7,8,7,0,6,1,0,3,0,2
+	DC.W 1,0,1,0,1,0,1,0,1,0,8,0,1,0,1,0
+	DC.W 0,0,3,5,0,4,0,1,4,0,0,1,0,8,1
+	DC.W 2,1,0,3,0,3,0,3,0,0,8,1,2,1,0,0
+	DC.W 0,7,0,0,3,0,2,0,0,1,0,2,0,2,1,7
+
+	DC.W 1,2,5,1,3,0,0,5,0,2,1,0,0,2,4,0
+	DC.W 2,1,0,1,0,2,0,3,0,0,0,1,2,1,0,7
 
 PALETTEBUFFERED:
 	DC.W $0180,$0000,$0182,$0000,$0184,$0111,$0186,$0122
@@ -615,7 +679,8 @@ BPLCOLORINDEX:	DC.W 6
 
 GLITCHOFFSET:	DC.W 10240
 BLITPLANEOFFSET:	DC.W 0
-
+BGSHIFTCOUNTER:	DC.W h/2
+BGISSHIFTING:	DC.W 0
 PATCH:		DS.B 10*64*bpls	;I need a buffer to save trap BG
 
 TEXTINDEX:	DC.W 0
@@ -628,16 +693,17 @@ POS16_REACHED:	DC.B 0
 
 KONEY2X:	INCBIN	"koney10x64.raw"
 
-TXTSCROLLBUF:	DS.B (bpl)*8
+TXTSCROLLBUF:	DS.B (bpl)*9
 _TXTSCROLLBUF:
 
 FRAMESINDEX:	DC.W 4
 
 BG1:	INCBIN	"onePlane_4.raw"
 	INCBIN	"onePlane_3.raw"
-	INCBIN	"onePlane_1.raw"
+	INCBIN	"onePlane_5.raw"
 	INCBIN	"onePlane_2.raw"
-	;INCBIN	"dithermirrorbg_3.raw"
+	INCBIN	"onePlane_1.raw"
+	INCBIN	"glitchditherbg8_320256_3.raw"
 
 FONT:	DC.L	0,0	; SPACE CHAR
 	INCBIN	"scummfnt_8x752.raw",0
@@ -667,7 +733,7 @@ Copper:
 
 	DC.W $102,0	;SCROLL REGISTER (AND PLAYFIELD PRI)
 
-Palette:			;Some kind of palette (3 bpls=8 colors)
+Palette:	;Some kind of palette (3 bpls=8 colors)
 	DC.W $0180,0,$0182,0,$0184,0,$0186,0
 	DC.W $0188,0,$018A,0,$018C,0,$018E,0
 	DC.W $0190,0,$0192,0,$0194,0,$0196,0
@@ -707,7 +773,7 @@ COPPERWAITS:
 _Copper:
 
 Module1:	INCBIN	"FatalDefrag_v4.P61"	; code $9104
-;GLITCHBUFFER:	INCBIN	"glitchditherbg1_320256_3.raw"
+
 ;*******************************************************************************
 	SECTION ChipBuffers,BSS_C	;BSS doesn't count toward exe size
 ;*******************************************************************************
