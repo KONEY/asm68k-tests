@@ -96,10 +96,8 @@ MainLoop:
 	move.l	a2,a1
 	;bsr	ClearScreen
 
-	BSR.W	__SET_PT_VISUALS
-
 	bsr	WaitBlitter
-
+	BSR.W	__SET_PT_VISUALS
 	MOVE.L	KONEYBG,DrawBuffer
 
 	; do stuff here :)
@@ -110,7 +108,8 @@ MainLoop:
 	BNE.S	.dontJump	; then switch
 	MOVEM.L	D0-A6,-(SP)
 	MOVE.W	#$F00,$180(A6)	; show rastertime left down to $12c
-	MOVEQ	#36-1,d0
+	;MOVEQ	#38-1,d0
+	MOVEQ	#3-1,d0
 	JSR	P61_SetPosition
 	MOVEM.L (SP)+,D0-A6
 	.dontJump:
@@ -118,7 +117,7 @@ MainLoop:
 	; TRIG BG SCROLL
 	MOVE.W	#0,BGISSHIFTING
 	MOVE.W	P61_Pos,D5
-	CMP.W	#41-1,D5		; seqeunce block position
+	CMP.W	#40-1,D5		; seqeunce block position
 	BLS.S	.dontScroll	; then switch
 	CLR	D5
 	MOVE.W	BGSHIFTCOUNTER,D5
@@ -126,6 +125,8 @@ MainLoop:
 	BEQ.S	.dontScroll	; then switch
 	MOVE.W	#0,AUDIOCHANLEVEL0
 	MOVE.W	#0,AUDIOCHANLEVEL3
+	;MOVE.W	#4,P61_visuctr2	; BASS
+	MOVE.W	#2,P61_visuctr1	; KICK
 	SUB.W	#1,BGSHIFTCOUNTER
 	MOVE.W	#1,BGISSHIFTING
 	ADD.L	#bwid*2,KONEYBG	; SCROLL 1PX UP
@@ -172,75 +173,6 @@ MainLoop:
 	RTS
 
 ;********** Demo Routines **********
-__SET_PT_VISUALS:
-	; MOD VISUALIZERS *****
-	ifne visuctrs
-	MOVEM.L D0-A6,-(SP)
-
-	; GROOVE 2
-	lea	P61_visuctr0(PC),a0; which channel? 0-3
-	moveq	#14,d0		; maxvalue
-	sub.w	(a0),d0		; -#frames/irqs since instrument trigger
-	bpl.s	.ok0		; below minvalue?
-	moveq	#0,d0		; then set to minvalue
-	.ok0:	
-	MOVE.W	D0,AUDIOCHANLEVEL0	; RESET
-	_ok0:
-
-	LEA	Palette,A1
-
-	; KICKDRUM
-	lea	P61_visuctr1(PC),a0; which channel? 0-3
-	moveq	#15,d0		; maxvalue
-	sub.w	(a0),d0		; -#frames/irqs since instrument trigger
-	bpl.s	.ok1		; below minvalue?
-	moveq	#0,d0		; then set to minvalue
-	MOVE.W	#$A,BPLCOLORINDEX	; FOR TIMING
-	.ok1:
-	MOVE.W	D0,AUDIOCHANLEVEL1	; RESET
-	DIVU.W	#$3,D0		; start from a darker shade
-	MOVE.L	D0,D3
-	ROL.L	#$4,D3		; expand bits to green
-	;ADD.L	#1,D3		; makes color a bit geener
-	ADD.L	D3,D0
-	ROL.L	#$4,D3
-	ADD.L	D3,D0		; expand bits to red
-	MOVE.W	D0,2(A1)		; poke WHITE color now
-	_ok1:
-
-	; BASS
-	lea	P61_visuctr2(PC),a0; which channel? 0-3
-	moveq	#15,d0		; maxvalue
-	sub.w	(a0),d0		; -#frames/irqs since instrument trigger
-	bpl.s	.ok2		; below minvalue?
-	moveq	#0,d0		; then set to minvalue
-	.ok2:	
-	MOVE.W	D0,AUDIOCHANLEVEL2	; RESET
-	DIVU.W	#$4,D0		; start from a darker shade
-	MOVE.L	D0,D3
-	ROL.L	#$4,D3		; expand bits to green
-	ADD.L	#1,D3		; makes color a bit geener
-	ADD.L	D3,D0
-	ROL.L	#$4,D3
-	ADD.L	D3,D0		; expand bits to red
-	MOVE.W	D0,6(A1)		; poke WHITE color now
-	_ok2:
-
-	; GROOVE 1
-	lea	P61_visuctr3(PC),a0; which channel? 0-3
-	moveq	#14,d0		; maxvalue
-	sub.w	(a0),d0		; -#frames/irqs since instrument trigger
-	bpl.s	.ok3		; below minvalue?
-	moveq	#0,d0		; then set to minvalue
-	.ok3:	
-	MOVE.W	D0,AUDIOCHANLEVEL3	; RESET
-	_ok3:
-
-	MOVEM.L (SP)+,D0-A6
-	RTS
-	endc
-	; MOD VISUALIZERS *****
-
 PokePtrs:				; Generic, poke ptrs into copper list
 	.bpll:	
 	move.l	a0,d2
@@ -331,6 +263,76 @@ _RandomByte:	move.b	$dff007,d5	;$dff00a $dff00b for mouse pos
 		move.b	$bfd800,d3
 		eor.b	d3,d5
 		rts
+
+__SET_PT_VISUALS:
+	; MOD VISUALIZERS *****
+	ifne visuctrs
+	MOVEM.L D0-A6,-(SP)
+
+	; GROOVE 2
+	lea	P61_visuctr0(PC),a0; which channel? 0-3
+	moveq	#14,d0		; maxvalue
+	sub.w	(a0),d0		; -#frames/irqs since instrument trigger
+	bpl.s	.ok0		; below minvalue?
+	moveq	#0,d0		; then set to minvalue
+	.ok0:	
+	MOVE.W	D0,AUDIOCHANLEVEL0	; RESET
+	_ok0:
+
+	LEA	Palette,A1
+	; BASS
+	lea	P61_visuctr2(PC),a0; which channel? 0-3
+	moveq	#15,d0		; maxvalue
+	sub.w	(a0),d0		; -#frames/irqs since instrument trigger
+	bpl.s	.ok2		; below minvalue?
+	moveq	#0,d0		; then set to minvalue
+	.ok2:	
+	MOVE.W	D0,AUDIOCHANLEVEL2	; RESET
+	DIVU.W	#$3,D0		; start from a darker shade
+	MOVE.L	D0,D3
+	ROL.L	#$4,D3		; expand bits to green
+	ADD.L	#1,D3		; makes color a bit geener
+	ADD.L	D3,D0
+	ROL.L	#$4,D3
+	ADD.L	D3,D0		; expand bits to red
+	MOVE.W	D0,6(A1)		; poke WHITE color now
+	_ok2:
+
+	; KICKDRUM
+	lea	P61_visuctr1(PC),a0; which channel? 0-3
+	moveq	#15,d0		; maxvalue
+	sub.w	(a0),d0		; -#frames/irqs since instrument trigger
+	bpl.s	.ok1		; below minvalue?
+	moveq	#0,d0		; then set to minvalue
+	MOVE.W	#$A,BPLCOLORINDEX	; FOR TIMING
+	.ok1:
+	MOVE.W	D0,AUDIOCHANLEVEL1	; RESET
+	;ADD.W	AUDIOCHANLEVEL2,D0	; KICK BRIGHTER IF BASS PLAYS TOO?
+	DIVU.W	#$3,D0		; start from a darker shade
+	MOVE.L	D0,D3
+	ROL.L	#$4,D3		; expand bits to green
+	;ADD.L	#1,D3		; makes color a bit geener
+	ADD.L	D3,D0
+	ROL.L	#$4,D3
+	ADD.L	D3,D0		; expand bits to red
+	MOVE.W	D0,2(A1)		; poke WHITE color now
+	_ok1:
+
+	; GROOVE 1
+	lea	P61_visuctr3(PC),a0; which channel? 0-3
+	moveq	#14,d0		; maxvalue
+	sub.w	(a0),d0		; -#frames/irqs since instrument trigger
+	bpl.s	.ok3		; below minvalue?
+	moveq	#0,d0		; then set to minvalue
+	.ok3:	
+	MOVE.W	D0,AUDIOCHANLEVEL3	; RESET
+	_ok3:
+
+	MOVEM.L (SP)+,D0-A6
+	RTS
+	endc
+	; MOD VISUALIZERS *****
+
 __PRINT2X:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
 	MOVE.L	KONEYLOGO_DPH,D1	; UGUALI PER TUTTI I BITPLANE
@@ -546,30 +548,34 @@ __DITHERBGPLANE:
 	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
 	MOVE.L	KONEYBG,A3	; Indirizzo del bitplane destinazione in a3
 	ADD.W	GLITCHOFFSET,A3	; NEXT BITPLANE (?)
-
-	;CLR	D2
+	MOVE.W	AUDIOCHANLEVEL3,D7
 	MOVE.W	DITHERFRAMEOFFSET,D2
 	ADD.W	#2,D2		; INCREMENTO INDICE TAB
-	AND.W	#56-1,D2		; AND TIRA FUORI SEMPRE FINO A X E POI WRAPPA
+	AND.W	#4-1,D2		; AND TIRA FUORI SEMPRE FINO A X E POI WRAPPA
 	MOVE.W	D2,DITHERFRAMEOFFSET
-	MULU.W	#40,D2
-	ADD.W	D2,A3		; JUMP ONE LINE
+	CMPI.W	#0,D2
+	BNE.S	.DontJumpLine
+	NOT	D7
+	ADD.W	#40*2,A3		; JUMP ONE LINE
+	.DontJumpLine:
 
-	MOVE.L	#30,D4		; QUANTE LINEE
+	MOVE.L	#127,D4		; QUANTE LINEE
 	.OUTERLOOP:		; NUOVA RIGA
-	;MOVE.L	#%10101010101010101010101010101010,D5	; RESET
-	move.b	$dff007,d5	;$dff00a $dff00b for mouse pos
+	move.b	$dff007,d5	; $dff00a $dff00b for mouse pos
 	move.b	$bfd800,d1
 	eor.b	d1,d5
 	ror.L	#8,d5
 
+	;MOVE.L	#%10101010101010101010101010101010,D5	; RESET
+
 	MOVEQ.L	#9,D6		; RESET D6
 	.INNERLOOP:		; LOOP KE CICLA LA BITMAP
 	MOVE.L	D5,(A3)+
-	;NOT	D5
+	rol.L	D7,d5
+	MOVE.L	D5,(A3)+
+	NOT	D7
 	DBRA	D6,.INNERLOOP
-	ADD.L	#300,A3		; JUMP ONE LINE
-
+	ADD.W	#40*2,A3		; JUMP ONE LINE
 	DBRA	D4,.OUTERLOOP
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
@@ -619,28 +625,37 @@ ViewBuffer:	DC.L SCREEN1
 
 DISPLACEINDEX:	DC.W 0
 DISPLACETABLE:
-	DC.W 0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,3
-	DC.W 1,8,0,3,4,0,0,2,6,0,3,7,1,0,7
-	DC.W 2,4,0,1,0,7,0,6,1,0,2,1,4,6,0,0
 	DC.W 1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0
 	DC.W 0,0,0,3,3,1,1,0,3,0,0,7,0,0,0,0
+	DC.W 0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,3
 	DC.W 1,2,5,2,0,1,0,1,0,2,4,0,3,0,2,1
 	DC.W 0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1
 	DC.W 1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0
+	DC.W 1,8,0,3,4,0,0,2,6,0,3,7,1,0,7
+	DC.W 2,4,0,1,0,7,0,6,1,0,2,1,4,6,0,0
 
+	DC.W 0,0,3,5,0,4,0,1,4,0,0,1,0,8,1
+	DC.W 2,1,0,3,0,3,0,3,0,0,8,1,2,1,0,0
+	DC.W 7,1,7,1,0,1,5,6,4,0,0,6,0,1,0,0
+	DC.W 0,0,0,5,0,1,0,1,0,0,3,0,1,0,1
+	DC.W 0,1,0,2,0,1,0,0,0,2,0,2,0,6,7,1
+	DC.W 1,2,3,4,5,6,7,8,7,0,6,1,0,3,0,2
+	DC.W 1,0,1,0,1,0,1,0,1,0,8,0,1,0,1,0
+	DC.W 0,7,0,0,3,0,2,0,0,1,0,2,0,2,1,7
+
+	DC.W 0,1,5,2,0,8,1,6,0,2,4,3,0,1,6,3
+	DC.W 0,0,0,3,3,1,1,0,3,0,0,7,0,0,0,0
 	DC.W 0,3,6,2,7,0,2,0,1,0,0,1,0,5,0,1
 	DC.W 0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1
 	DC.W 1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0
-	DC.W 0,1,5,2,0,8,1,6,0,2,4,3,0,1,6,3
-	DC.W 0,0,0,3,3,1,1,0,3,0,0,7,0,0,0,0
 	DC.W 1,2,5,2,0,1,0,1,0,2,4,0,3,0,2,1
 	DC.W 0,0,3,6,0,0,0,1,6,0,0,8,0,4,1
 	DC.W 2,1,0,1,0,2,0,3,2,0,0,1,2,1,0,3
 
-	DC.W 0,1,5,2,0,2,1,0,0,2,4,3,0,0,6,1
-	DC.W 0,8,0,3,0,0,1,0,3,0,0,7,0,0,0,6
 	DC.W 0,1,0,2,0,0,1,0,3,2,0,3,0,6,7,1
 	DC.W 0,0,8,3,0,0,0,0,3,0,0,7,0,0,0,0
+	DC.W 0,1,5,2,0,2,1,0,0,2,4,3,0,0,6,1
+	DC.W 0,8,0,3,0,0,1,0,3,0,0,7,0,0,0,6
 	DC.W 1,3,0,5,0,1,0,3,0,0,2,0,1,0,2,1
 	DC.W 0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1
 	DC.W 1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0
@@ -655,21 +670,12 @@ DISPLACETABLE:
 	DC.W 0,0,3,0,0,0,0,3,8,0,0,1,0,4,1
 	DC.W 1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0
 
-	DC.W 7,1,7,1,0,1,5,6,4,0,0,6,0,1,0,0
-	DC.W 0,0,0,5,0,1,0,1,0,0,3,0,1,0,1
-	DC.W 0,1,0,2,0,1,0,0,0,2,0,2,0,6,7,1
-	DC.W 1,2,3,4,5,6,7,8,7,0,6,1,0,3,0,2
-	DC.W 1,0,1,0,1,0,1,0,1,0,8,0,1,0,1,0
-	DC.W 0,0,3,5,0,4,0,1,4,0,0,1,0,8,1
-	DC.W 2,1,0,3,0,3,0,3,0,0,8,1,2,1,0,0
-	DC.W 0,7,0,0,3,0,2,0,0,1,0,2,0,2,1,7
-
 	DC.W 1,2,5,1,3,0,0,5,0,2,1,0,0,2,4,0
 	DC.W 2,1,0,1,0,2,0,3,0,0,0,1,2,1,0,7
 
 PALETTEBUFFERED:
 	DC.W $0180,$0000,$0182,$0000,$0184,$0111,$0186,$0122
-	DC.W $0188,$0333,$018A,$0444,$018C,$0555,$018E,$0455
+	DC.W $0188,$0333,$018A,$0444,$018C,$0555,$018E,$0556
 	DC.W $0190,$0666,$0192,$0888,$0194,$0999,$0196,$0AAA
 	DC.W $0198,$09AA,$019A,$0FFF,$019C,$0FFF,$019E,$0FFF
 
@@ -699,10 +705,10 @@ _TXTSCROLLBUF:
 FRAMESINDEX:	DC.W 4
 
 BG1:	INCBIN	"onePlane_4.raw"
-	INCBIN	"onePlane_3.raw"
-	INCBIN	"onePlane_5.raw"
-	INCBIN	"onePlane_2.raw"
 	INCBIN	"onePlane_1.raw"
+	INCBIN	"onePlane_5.raw"
+	INCBIN	"onePlane_3.raw"
+	INCBIN	"onePlane_2.raw"
 	INCBIN	"glitchditherbg8_320256_3.raw"
 
 FONT:	DC.L	0,0	; SPACE CHAR
