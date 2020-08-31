@@ -103,33 +103,34 @@ MainLoop:
 	; do stuff here :)
 
 	;---  change position  ---
-	;MOVE.W	P61_Pos,D5
-	;CMP.W	#1,D5		; seqeunce block position
-	;BNE.S	.dontJump	; then switch
-	;MOVEM.L	D0-A6,-(SP)
-	;MOVE.W	#$F00,$180(A6)	; show rastertime left down to $12c
-	;;MOVEQ	#38-1,d0
-	;MOVEQ	#3-1,d0
-	;JSR	P61_SetPosition
-	;MOVEM.L (SP)+,D0-A6
-	;.dontJump:
+	MOVE.W	P61_Pos,D5
+	CMP.W	#1,D5		; seqeunce block position
+	BNE.S	.dontJump	; then switch
+	MOVEM.L	D0-A6,-(SP)
+	MOVE.W	#$F00,$180(A6)	; show rastertime left down to $12c
+	MOVEQ	#40-1,d0
+	;MOVEQ	#16-1,d0
+	JSR	P61_SetPosition
+	;ADD.L	#bpl*h,KONEYBG	; SCROLL 1 BTPL
+	MOVEM.L (SP)+,D0-A6
+	.dontJump:
 
 	; TRIG BG SCROLL
 	MOVE.W	#0,BGISSHIFTING
 	MOVE.W	P61_Pos,D5
-	CMP.W	#40-1,D5		; seqeunce block position
+	CMP.W	#41-1,D5		; seqeunce block position
 	BLS.S	.dontScroll	; then switch
 	CLR	D5
 	MOVE.W	BGSHIFTCOUNTER,D5
 	CMP.W	#0,D5		; seqeunce block position
 	BEQ.S	.dontScroll	; then switch
-	MOVE.W	#0,AUDIOCHANLEVEL0
-	MOVE.W	#0,AUDIOCHANLEVEL3
+	MOVE.W	#0,AUDIOCHANLEVEL0	; Stop FXs
+	MOVE.W	#0,AUDIOCHANLEVEL3	; Stop FXs
 	;MOVE.W	#4,P61_visuctr2	; BASS
 	MOVE.W	#2,P61_visuctr1	; KICK
-	SUB.W	#1,BGSHIFTCOUNTER
 	MOVE.W	#1,BGISSHIFTING
-	ADD.L	#bwid*2,KONEYBG	; SCROLL 1PX UP
+	SUB.W	#bpl*h/20,BGSHIFTCOUNTER
+	ADD.L	#bpl*h/20,KONEYBG	; SCROLL 1PX UP
 	BSR.W	__CREAPATCH	; FILL THE BUFFER
 	.dontScroll:
 	; TRIG BG SCROLL
@@ -137,7 +138,8 @@ MainLoop:
 	MOVE.W	AUDIOCHANLEVEL0,D2	; GROOVE 2
 	CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
 	BEQ.S	_noglitch2
-	MOVE.W	#10240,GLITCHOFFSET
+	MOVE.W	#0,AUDIOCHANLEVEL3	; Stop FXs
+	MOVE.W	#0,GLITCHOFFSET	; #10240 for NEXT BTPL
 	BSR.W	__BLIT_GLITCH_PLANE; THIS NEEDS OPTIMIZING
 	_noglitch2:
 
@@ -291,9 +293,10 @@ __SET_PT_VISUALS:
 	DIVU.W	#$3,D0		; start from a darker shade
 	MOVE.L	D0,D3
 	ROL.L	#$4,D3		; expand bits to green
-	ADD.L	#1,D3		; makes color a bit geener
+	ADD.L	#2,D3		; makes color a bit geener
 	ADD.L	D3,D0
 	ROL.L	#$4,D3
+	ADD.L	#1,D3		; makes color a bit geener
 	ADD.L	D3,D0		; expand bits to red
 	MOVE.W	D0,6(A1)		; poke WHITE color now
 	_ok2:
@@ -308,14 +311,15 @@ __SET_PT_VISUALS:
 	.ok1:
 	MOVE.W	D0,AUDIOCHANLEVEL1	; RESET
 	;ADD.W	AUDIOCHANLEVEL2,D0	; KICK BRIGHTER IF BASS PLAYS TOO?
-	DIVU.W	#$3,D0		; start from a darker shade
+	DIVU.W	#$2,D0		; start from a darker shade
+	ADD.W	#$2,D0		; start from a darker shade
 	MOVE.L	D0,D3
 	ROL.L	#$4,D3		; expand bits to green
 	;ADD.L	#1,D3		; makes color a bit geener
 	ADD.L	D3,D0
 	ROL.L	#$4,D3
 	ADD.L	D3,D0		; expand bits to red
-	MOVE.W	D0,2(A1)		; poke WHITE color now
+	MOVE.W	D0,14(A1)		; poke WHITE color now
 	_ok1:
 
 	; GROOVE 1
@@ -354,7 +358,7 @@ __PRINT2X:
 	AND.W	#1024-1,D7	; AND TIRA FUORI SEMPRE FINO A X E POI WRAPPA
 	ROL.L	D5,D3		; GLITCH
 
-	EOR.L	D2,D3		; KOMBINO SFONDO+SKRITTA
+	EOR.W	D2,D3		; KOMBINO SFONDO+SKRITTA
 	MOVE.L	D3,(A4)		
 	ADD.W	#POS_MID,A4	; POSITIONING
 
@@ -559,7 +563,7 @@ __DITHERBGPLANE:
 	ADD.W	#40*2,A3		; JUMP ONE LINE
 	.DontJumpLine:
 
-	MOVE.L	#127,D4		; QUANTE LINEE
+	MOVE.L	#63,D4		; QUANTE LINEE
 	.OUTERLOOP:		; NUOVA RIGA
 	move.b	$dff007,d5	; $dff00a $dff00b for mouse pos
 	move.b	$bfd800,d1
@@ -685,7 +689,7 @@ BPLCOLORINDEX:	DC.W 6
 
 GLITCHOFFSET:	DC.W 10240
 BLITPLANEOFFSET:	DC.W 0
-BGSHIFTCOUNTER:	DC.W h/2
+BGSHIFTCOUNTER:	DC.W bwid*h
 BGISSHIFTING:	DC.W 0
 PATCH:		DS.B 10*64*bpls	;I need a buffer to save trap BG
 
@@ -709,7 +713,7 @@ BG1:	INCBIN	"onePlane_4.raw"
 	INCBIN	"onePlane_5.raw"
 	INCBIN	"onePlane_3.raw"
 	INCBIN	"onePlane_2.raw"
-	INCBIN	"glitchditherbg8_320256_3.raw"
+	INCBIN	"BG_METAL_320256_4.raw"
 
 FONT:	DC.L	0,0	; SPACE CHAR
 	INCBIN	"scummfnt_8x752.raw",0
