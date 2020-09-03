@@ -17,6 +17,8 @@ POS_MID=4
 POS_RIGHT=20
 POS_BOTTOM=122*bpl
 BAND_OFFSET=86*bpl
+;*************
+SONG_POSITION_JUMP=0	;38
 ;BLITTER CONSTANTS
 bltx	=0
 ;blty	=0
@@ -79,7 +81,6 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 
 ;********************  main loop  ********************
 MainLoop:
-
 	move.w	#$12c,d0		;No buffering, so wait until raster
 	bsr.w	WaitRaster	;is below the Display Window.
 	;*--- swap buffers ---*
@@ -102,27 +103,89 @@ MainLoop:
 
 	; do stuff here :)
 
-	;---  change position  ---
+SONG_POSITION_EVENTS:
+	;* FOR TIMED EVENTS ON SELECTED FRAME ****
 	MOVE.W	P61_Pos,D5
-	CMP.W	#1,D5		; seqeunce block position
-	BNE.S	.dontJump	; then switch
-	MOVEM.L	D0-A6,-(SP)
-	MOVE.W	#$F00,$180(A6)	; show rastertime left down to $12c
-	;MOVEQ	#40-1,d0
-	MOVEQ	#6-1,d0
-	JSR	P61_SetPosition
-	;ADD.L	#bpl*h,KONEYBG	; SCROLL 1 BTPL
-	MOVEM.L (SP)+,D0-A6
-	.dontJump:
+	CMP.W	P61_LAST_POS,D5
+	BNE.S	.dontReset
+	MOVE.W	#0,P61_FRAMECOUNT
+	ADD.W	#1,P61_LAST_POS
+	.dontReset:
+	MOVE.W	P61_FRAMECOUNT,D4
+	ADD.W	#1,D4
+	MOVE.W	D4,P61_FRAMECOUNT
+
+	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
+	CMPI.W	#1,D5		; SONG POSITION
+	BNE.S	.doNothing1
+	CMPI.W	#1,D4		; BEATS * 14frames
+	BNE.S	.doNothing1
+	ADD.L	#bpl*h,KONEYBG	; SCROLL 1SCREEN UP
+	BSR.W	__CREAPATCH	; FILL THE BUFFER
+	BSR.W	__CREATESCROLLSPACE; NOW WE USE THE BLITTER HERE!
+	.doNothing1:
+	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
+	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
+	CMPI.W	#2,D5		; SONG POSITION
+	BNE.S	.doNothing2
+	CMPI.W	#1,D4		; BEATS * 14frames
+	BNE.S	.doNothing2
+	ADD.L	#bpl*h,KONEYBG	; SCROLL 1SCREEN UP
+	BSR.W	__CREAPATCH	; FILL THE BUFFER
+	BSR.W	__CREATESCROLLSPACE; NOW WE USE THE BLITTER HERE!
+	.doNothing2:
+	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
+	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
+	CMPI.W	#3,D5		; SONG POSITION
+	BNE.S	.doNothing3
+	CMPI.W	#1,D4		; BEATS * 14frames
+	BNE.S	.doNothing3
+	ADD.L	#bpl*h*2,KONEYBG	; SCROLL 1SCREEN UP
+	BSR.W	__CREAPATCH	; FILL THE BUFFER
+	BSR.W	__CREATESCROLLSPACE; NOW WE USE THE BLITTER HERE!
+	.doNothing3:
+	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
+	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
+	CMPI.W	#4,D5		; SONG POSITION
+	BNE.S	.doNothing4
+	CMPI.W	#1,D4		; BEATS * 14frames
+	BNE.S	.doNothing4
+	ADD.L	#bpl*h,KONEYBG	; SCROLL 2 SCREEN UP
+	BSR.W	__CREAPATCH	; FILL THE BUFFER
+	BSR.W	__CREATESCROLLSPACE; NOW WE USE THE BLITTER HERE!
+	.doNothing4:
+	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
+	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
+	CMPI.W	#5,D5		; SONG POSITION
+	BNE.S	.doNothing0
+	CMPI.W	#200,D4		; BEATS * 14frames
+	BNE.S	.doNothing0
+	ADD.L	#bpl*h,KONEYBG	; SCROLL 1SCREEN UP
+	BSR.W	__CREAPATCH	; FILL THE BUFFER
+	BSR.W	__CREATESCROLLSPACE; NOW WE USE THE BLITTER HERE!
+	.doNothing0:
+	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
+	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
+	CMPI.W	#6,D5		; SONG POSITION
+	BNE.S	.doNothing5
+	CMPI.W	#112,D4		; BEATS * 14frames
+	BNE.S	.doNothing5
+	ADD.L	#bpl*h*2,KONEYBG	; SCROLL 1SCREEN UP
+	BSR.W	__CREAPATCH	; FILL THE BUFFER
+	BSR.W	__CREATESCROLLSPACE; NOW WE USE THE BLITTER HERE!
+	.doNothing5:
+	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
+	;* FOR TIMED EVENTS ON SELECTED FRAME ****
+_SONG_POSITION_EVENTS:
 
 	; TRIG BG SCROLL
 	MOVE.W	#0,BGISSHIFTING
 	MOVE.W	P61_Pos,D5
-	CMP.W	#41-1,D5		; seqeunce block position
+	CMPI.W	#41-1,D5		; seqeunce block position TEST 41!!
 	BLS.S	.dontScroll1	; then switch
 	CLR	D5
 	MOVE.W	BGSHIFTOFFSET,D5
-	CMP.W	#0,D5		; seqeunce block position
+	CMPI.W	#0,D5		; seqeunce block position
 	BEQ.S	.dontScroll1	; then switch
 	MOVE.W	#0,AUDIOCHANLEVEL0	; Stop FXs
 	MOVE.W	#0,AUDIOCHANLEVEL3	; Stop FXs
@@ -151,7 +214,7 @@ MainLoop:
 	_noglitch1:
 
 	MOVE.W	BGISSHIFTING,D5
-	CMP.W	#1,D5		; seqeunce block position
+	CMPI.W	#1,D5		; seqeunce block position
 	BEQ.S	.dontPlotObjects	; then switch
 	BSR.W	__PRINT2X
 	MOVE.L	#bpls-1,KONEYLOGO_DPH; RESTORE BITPLANE
@@ -160,15 +223,25 @@ MainLoop:
 	BSR.W	__POPULATETXTBUFFER; PUT SOMETHING
 	.dontPlotObjects:
 
-	; TRIG BG SCROLL FIRST POS 7
-	;MOVE.W	#1,BGSHIFTCOUNTER0
-	MOVE.W	#7-1,BGSONGPOS
-	BSR.W	__JUMP_FORWARD_ONE_BTPL
-
 	;*--- main loop end ---*
+
+	ifne SONG_POSITION_JUMP
+	;---  change position  ---
+	MOVE.W	P61_Pos,D5
+	CMP.W	#1,D5		; seqeunce block position
+	BNE.S	.dontJump	; then switch
+	MOVEM.L	D0-A6,-(SP)
+	MOVE.W	#$0FF,$180(A6)	; show rastertime left down to $12c
+	;MOVE.W	#14-1,P61_LAST_POS	; RESET POSITION COUNTER
+	MOVEQ	#SONG_POSITION_JUMP,D0
+	JSR	P61_SetPosition
+	MOVEM.L (SP)+,D0-A6
+	.dontJump:
+	endc
+
 	BTST	#6,$BFE001
 	BNE.S	.DontShowRasterTime
-	MOVE.W	#$0F0,$180(A6)	; show rastertime left down to $12c
+	MOVE.W	#$FF0,$180(A6)	; show rastertime left down to $12c
 	.DontShowRasterTime:
 	BTST	#2,$DFF016	; POTINP - RMB pressed?
 	BNE.W	MainLoop		; then loop
@@ -342,31 +415,6 @@ __SET_PT_VISUALS:
 	endc
 	; MOD VISUALIZERS *****
 
-; NEEDS 3 PARAMS: BGSHIFTCOUNTGLO, NEWPOSITION
-__JUMP_FORWARD_ONE_BTPL:
-	; TRIG BG SCROLL
-	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
-	MOVE.W	#0,BGISSHIFTING
-	MOVE.W	P61_Pos,D5
-	CMP.W	BGSONGPOS,D5	; seqeunce block position
-	BLS.S	.dontScroll0	; then switch
-	CLR	D5
-	MOVE.W	BGSHIFTCOUNTER0,D5
-	CMP.W	#0,D5		; seqeunce block position
-	BEQ.S	.dontScroll0	; then switch
-	MOVE.W	#0,AUDIOCHANLEVEL0	; Stop FXs
-	MOVE.W	#0,AUDIOCHANLEVEL3	; Stop FXs
-	;MOVE.W	#4,P61_visuctr2	; BASS
-	MOVE.W	#2,P61_visuctr1	; KICK
-	SUB.W	#1,BGSHIFTCOUNTER0
-	MOVE.W	#1,BGISSHIFTING
-	ADD.L	#bpl*h,KONEYBG	; SCROLL 1SCREEN UP
-	BSR.W	__CREAPATCH	; FILL THE BUFFER
-	BSR.W	__CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
-	.dontScroll0:
-	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
-	RTS
-
 __PRINT2X:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
 	MOVE.L	KONEYLOGO_DPH,D1	; UGUALI PER TUTTI I BITPLANE
@@ -394,7 +442,7 @@ __PRINT2X:
 
 	MOVE.L	(A0)+,D2		; SALVO SFONDO
 	MOVE.L	(A5)+,D3		
-	ROL.L	D5,D3		; GLITCH
+	LSR.L	D5,D3		; GLITCH
 	EOR.L	D2,D3		; KOMBINO SFONDO+SKRITTA
 	MOVE.L	D3,(A4)		
 	ADD.W	#POS_RIGHT,A4	; POSITIONING
@@ -652,6 +700,8 @@ AUDIOCHANLEVEL0:	DC.W 0
 AUDIOCHANLEVEL1:	DC.W 0
 AUDIOCHANLEVEL2:	DC.W 0
 AUDIOCHANLEVEL3:	DC.W 0
+P61_LAST_POS:	DC.W 0
+P61_FRAMECOUNT:	DC.W 0
 
 KONEYBG:		DC.L BG1		; INIT BG
 DrawBuffer:	DC.L SCREEN2	; pointers to buffers to be swapped
@@ -660,52 +710,52 @@ ViewBuffer:	DC.L SCREEN1
 DISPLACEINDEX:	DC.W 0
 DISPLACETABLE:
 	DC.W 1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0
-	DC.W 0,0,0,3,3,1,1,0,3,0,0,7,0,0,0,0
+	DC.W 0,0,0,3,3,1,1,0,3,0,0,1,0,0,0,0
 	DC.W 0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,3
-	DC.W 1,2,5,2,0,1,0,1,0,2,4,0,3,0,2,1
+	DC.W 1,2,2,2,0,1,0,1,0,2,4,0,3,0,2,1
 	DC.W 0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1
 	DC.W 1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0
-	DC.W 1,8,0,3,4,0,0,2,6,0,3,7,1,0,7
-	DC.W 2,4,0,1,0,7,0,6,1,0,2,1,4,6,0,0
+	DC.W 1,5,0,3,4,0,0,2,4,0,3,1,1,0,1
+	DC.W 2,4,0,1,0,1,0,4,1,0,2,1,4,4,0,0
 
-	DC.W 0,0,3,5,0,4,0,1,4,0,0,1,0,8,1
-	DC.W 2,1,0,3,0,3,0,3,0,0,8,1,2,1,0,0
-	DC.W 7,1,7,1,0,1,5,6,4,0,0,6,0,1,0,0
-	DC.W 0,0,0,5,0,1,0,1,0,0,3,0,1,0,1
-	DC.W 0,1,0,2,0,1,0,0,0,2,0,2,0,6,7,1
-	DC.W 1,2,3,4,5,6,7,8,7,0,6,1,0,3,0,2
-	DC.W 1,0,1,0,1,0,1,0,1,0,8,0,1,0,1,0
-	DC.W 0,7,0,0,3,0,2,0,0,1,0,2,0,2,1,7
+	DC.W 0,0,3,2,0,4,0,1,4,0,0,1,0,5,1
+	DC.W 2,1,0,3,0,3,0,3,0,0,5,1,2,1,0,0
+	DC.W 1,1,1,1,0,1,2,4,4,0,0,4,0,1,0,0
+	DC.W 0,0,0,2,0,1,0,1,0,0,3,0,1,0,1
+	DC.W 0,1,0,2,0,1,0,0,0,2,0,2,0,4,1,1
+	DC.W 1,2,3,4,2,4,1,5,1,0,4,1,0,3,0,2
+	DC.W 1,0,1,0,1,0,1,0,1,0,5,0,1,0,1,0
+	DC.W 0,1,0,0,3,0,2,0,0,1,0,2,0,2,1,1
 
-	DC.W 0,1,5,2,0,8,1,6,0,2,4,3,0,1,6,3
-	DC.W 0,0,0,3,3,1,1,0,3,0,0,7,0,0,0,0
-	DC.W 0,3,6,2,7,0,2,0,1,0,0,1,0,5,0,1
+	DC.W 0,1,2,2,0,5,1,4,0,2,4,3,0,1,4,3
+	DC.W 0,0,0,3,3,1,1,0,3,0,0,1,0,0,0,0
+	DC.W 0,3,4,2,1,0,2,0,1,0,0,1,0,2,0,1
 	DC.W 0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1
 	DC.W 1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0
-	DC.W 1,2,5,2,0,1,0,1,0,2,4,0,3,0,2,1
-	DC.W 0,0,3,6,0,0,0,1,6,0,0,8,0,4,1
+	DC.W 1,2,2,2,0,1,0,1,0,2,4,0,3,0,2,1
+	DC.W 0,0,3,4,0,0,0,1,4,0,0,5,0,4,1
 	DC.W 2,1,0,1,0,2,0,3,2,0,0,1,2,1,0,3
 
-	DC.W 0,1,0,2,0,0,1,0,3,2,0,3,0,6,7,1
-	DC.W 0,0,8,3,0,0,0,0,3,0,0,7,0,0,0,0
-	DC.W 0,1,5,2,0,2,1,0,0,2,4,3,0,0,6,1
-	DC.W 0,8,0,3,0,0,1,0,3,0,0,7,0,0,0,6
-	DC.W 1,3,0,5,0,1,0,3,0,0,2,0,1,0,2,1
+	DC.W 0,1,0,2,0,0,1,0,3,2,0,3,0,4,1,1
+	DC.W 0,0,5,3,0,0,0,0,3,0,0,1,0,0,0,0
+	DC.W 0,1,2,2,0,2,1,0,0,2,4,3,0,0,4,1
+	DC.W 0,5,0,3,0,0,1,0,3,0,0,1,0,0,0,4
+	DC.W 1,3,0,2,0,1,0,3,0,0,2,0,1,0,2,1
 	DC.W 0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1
 	DC.W 1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0
 	DC.W 0,2,0,0,3,0,0,2,0,1,0,0,0,2,1,0
 
-	DC.W 0,3,6,2,7,0,2,4,1,0,0,1,0,5,0,1
-	DC.W 1,2,0,3,4,0,0,2,6,0,3,6,1,0,7
+	DC.W 0,3,4,2,1,0,2,4,1,0,0,1,0,2,0,1
+	DC.W 1,2,0,3,4,0,0,2,4,0,3,4,1,0,1
 	DC.W 0,1,0,1,0,1,0,1,0,1,0,1,0,2,0,1
 	DC.W 1,0,1,3,1,0,1,0,1,0,1,0,1,0,1,0
-	DC.W 0,0,0,5,0,1,0,1,0,0,3,0,1,0,1
+	DC.W 0,0,0,2,0,1,0,1,0,0,3,0,1,0,1
 	DC.W 1,3,0,2,0,1,2,3,0,2,4,0,4,0,2,0
-	DC.W 0,0,3,0,0,0,0,3,8,0,0,1,0,4,1
+	DC.W 0,0,3,0,0,0,0,3,5,0,0,1,0,4,1
 	DC.W 1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0
 
-	DC.W 1,2,5,1,3,0,0,5,0,2,1,0,0,2,4,0
-	DC.W 2,1,0,1,0,2,0,3,0,0,0,1,2,1,0,7
+	DC.W 1,2,2,1,3,0,0,2,0,2,1,0,0,2,4,0
+	DC.W 2,1,0,1,0,2,0,3,0,0,0,1,2,1,0,1
 
 PALETTEBUFFERED:
 	DC.W $0180,$0000,$0182,$0000,$0184,$0111,$0186,$0122
@@ -741,14 +791,19 @@ _TXTSCROLLBUF:
 
 FRAMESINDEX:	DC.W 4
 
-BG1:	INCBIN	"onePlane_4.raw"
-	INCBIN	"onePlane_1.raw"
-	INCBIN	"onePlane_5.raw"
-	INCBIN	"onePlane_3.raw"
-	INCBIN	"onePlane_7.raw"
-	INCBIN	"onePlane_6.raw"
-	INCBIN	"onePlane_2.raw"
+BG1:	
+	INCBIN	"onePlane_9.raw"
 	INCBIN	"onePlane_8.raw"
+	INCBIN	"onePlane_10_2.raw"
+	INCBIN	"onePlane_5.raw"
+	INCBIN	"onePlane_7.raw"
+	INCBIN	"onePlane_11.raw"
+	INCBIN	"onePlane_4_2.raw"
+	INCBIN	"onePlane_6_2.raw"
+	INCBIN	"onePlane_3.raw"
+	INCBIN	"onePlane_1.raw"
+	INCBIN	"onePlane_12.raw"
+	INCBIN	"onePlane_2.raw"
 	INCBIN	"BG_METAL_320256_4.raw"
 
 FONT:	DC.L	0,0	; SPACE CHAR
