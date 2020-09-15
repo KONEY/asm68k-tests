@@ -18,7 +18,7 @@ POS_RIGHT=20
 POS_BOTTOM=122*bpl
 BAND_OFFSET=86*bpl
 ;*************
-SONG_POSITION_JUMP=0	;38
+SONG_POSITION_JUMP=40	;38
 ;BLITTER CONSTANTS
 bltx	=0
 ;blty	=0
@@ -103,6 +103,8 @@ MainLoop:
 
 	; do stuff here :)
 
+	CLR.W	$100		; DEBUG | w 0 100 2
+
 	ifne SONG_POSITION_JUMP
 	;---  change position  ---
 	MOVE.W	P61_Pos,D5
@@ -110,7 +112,7 @@ MainLoop:
 	BNE.S	.dontJump	; then switch
 	MOVEM.L	D0-A6,-(SP)
 	MOVE.W	#$0FF,$180(A6)	; show rastertime left down to $12c
-	MOVE.W	#SONG_POSITION_JUMP,P61_LAST_POS	; RESET POSITION COUNTER
+	;MOVE.W	#14-1,P61_LAST_POS	; RESET POSITION COUNTER
 	CLR.L	D0
 	MOVEQ	#SONG_POSITION_JUMP,D0
 	JSR	P61_SetPosition
@@ -370,29 +372,14 @@ __SET_PT_VISUALS:
 	moveq	#0,d0		; then set to minvalue
 	.ok2:	
 	MOVE.W	D0,AUDIOCHANLEVEL2	; RESET
-	MOVE.L	D0,D5
 	DIVU.W	#$3,D0		; start from a darker shade
 	MOVE.L	D0,D3
-
-	ANDI.W	#1,D5
-	BEQ.S	.even
-	.odd:
-	ROL.L	#$4,D3		; expand bits to green
-	ADD.L	#1,D3		; makes color a bit geener
-	ADD.L	D3,D0
-	ROL.L	#$4,D3
-	;ADD.L	#0,D3		; makes color a bit geener
-	ADD.L	D3,D0		; expand bits to red
-	BRA.S  .DONE
-	.even:
 	ROL.L	#$4,D3		; expand bits to green
 	ADD.L	#2,D3		; makes color a bit geener
 	ADD.L	D3,D0
 	ROL.L	#$4,D3
 	ADD.L	#1,D3		; makes color a bit geener
 	ADD.L	D3,D0		; expand bits to red
-	.done:
-
 	MOVE.W	D0,6(A1)		; poke WHITE color now
 	_ok2:
 

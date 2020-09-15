@@ -39,6 +39,8 @@ BLTCDAT	= $dff070
 BLTBDAT	= $dff072
 BLTADAT	= $dff074
 
+BPLCON1	= $DFF102
+
 ;bit 6: enable blitter DMA - bit 10: give blitter priority over the CPU
 DMACON	= $dff096
 
