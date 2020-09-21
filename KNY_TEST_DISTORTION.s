@@ -688,8 +688,8 @@ __BLIT_GLITCH_PLANE:
 	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
 	MOVE.L	KONEYBG,A4
 	ADD.W	GLITCHOFFSET,A4	; NEXT BITPLANE (?)
-	MOVE.W	BLITPLANEOFFSET,D2
-	;MOVE.W	D0,D2
+	MOVE.W	BLITPLANEOFFSET,D0
+	MOVE.W	D0,D2
 	ADD.W	#1,D2		; INCREMENTO INDICE TAB
 	AND.W	#32-1,D2		; AND TIRA FUORI SEMPRE FINO A X E POI WRAPPA
 	MOVE.W	D2,BLITPLANEOFFSET
@@ -714,17 +714,21 @@ __BLIT_GLITCH_PLANE:
 __HW_DISPLACE:
 	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
 
-	MOVE.L	#63,D4		; QUANTE LINEE
-	.OUTERLOOP:		; NUOVA RIGA
+	CLR.L	d2
 	move.b	$dff007,d5	; $dff00a $dff00b for mouse pos
 	move.b	$bfd800,d1
+	;MOVE.L	#63,D4		; QUANTE LINEE
+	;.OUTERLOOP:		; NUOVA RIGA
+	;ror.L	#8,d5
+	;DBRA	D4,.OUTERLOOP
+	.loop:
+	move.w	$dff006,d2
 	eor.b	d1,d5
-	ror.L	#8,d5
-
-	MOVE.W	D5,BPLCON1
-
-	DBRA	D4,.OUTERLOOP
+	MOVE.W	D5,BPLCON1	; 19DEA68E
+	cmp.w	#$FF00,d2
+	bge.s	.loop
 	CLR.W	$100		; DEBUG | w 0 100 2
+
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
@@ -737,7 +741,7 @@ __HW_DISPLACE_PRECALC:
 	ADD.W	#2,D7		; INCREMENTO INDICE TAB
 	AND.W	#32-1,D7		; AND TIRA FUORI SEMPRE FINO A X E POI WRAPPA
 	MOVE.W	D7,HWDISPLACEINDEX	; UPDATE INDEX
-	CLR.W	$100		; DEBUG | w 0 100 2
+	;CLR.W	$100		; DEBUG | w 0 100 2
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
@@ -899,8 +903,8 @@ _TEXT:
 
 Copper:
 	DC.W $1FC,0	;Slow fetch mode, remove if AGA demo.
-	DC.W $8E,$2C81	;238h display window top, left
-	DC.W $90,$2CC1	;and bottom, right.
+	DC.W $8E,$2C81	;238h display window top, left | DIWSTRT - 11.393
+	DC.W $90,$2CC1	;and bottom, right.	| DIWSTOP - 11.457
 	DC.W $92,$38	;Standard bitplane dma fetch start
 	DC.W $94,$D0	;and stop for standard screen.
 
@@ -932,6 +936,12 @@ BplPtrs:
 	DC.W $100,BPLS*$1000+$200	;enable bitplanes
 
 COPPERWAITS:
+	; HW DISPLACEMENT
+	;DC.W $002D,$FFFE
+	;DC.W $F102,$A68E
+	;DC.W $FE07,$FFFE
+	;DC.W $F102,$1F83
+
 	;DC.W $FE07,$FFFE
 	;DC.W $0180,$0FFF
 	;DC.W $FF07,$FFFE
