@@ -109,7 +109,7 @@ MainLoop:
 	CMP.W	#1,D5		; seqeunce block position
 	BNE.S	.dontJump	; then switch
 	MOVEM.L	D0-A6,-(SP)
-	MOVE.W	#$0FF,$180(A6)	; show rastertime left down to $12c
+	;MOVE.W	#$0FF,$180(A6)	; show rastertime left down to $12c
 	MOVE.W	#SONG_POSITION_JUMP,P61_LAST_POS	; RESET POSITION COUNTER
 	CLR.L	D0
 	MOVEQ	#SONG_POSITION_JUMP,D0
@@ -194,9 +194,7 @@ SONG_POSITION_EVENTS:
 	BSR.W	__CREATESCROLLSPACE; NOW WE USE THE BLITTER HERE!
 	.doNothing4:
 	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
-	;* FOR TIMED EVENTS ON SELECTED FRAME ****
-_SONG_POSITION_EVENTS:
-
+	; TIMED EVENTS ON SELECTED FRAME ****
 	; TRIG BG SCROLL
 	MOVE.W	#0,BGISSHIFTING
 	MOVE.W	P61_Pos,D5
@@ -217,6 +215,7 @@ _SONG_POSITION_EVENTS:
 	.dontScroll1:
 	; TRIG BG SCROLL
 
+SOUND_TRIGGERED_EVENTS:
 	MOVE.W	AUDIOCHANLEVEL0,D2	; GROOVE 2
 	CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
 	BEQ.S	_noglitch2
@@ -232,6 +231,7 @@ _SONG_POSITION_EVENTS:
 	BSR.W	__DITHERBGPLANE	; THIS NEEDS OPTIMIZING
 	_noglitch1:
 
+ALWAYS_TRIGGERED_EVENTS:
 	MOVE.W	BGISSHIFTING,D5
 	CMPI.W	#1,D5		; seqeunce block position
 	BEQ.S	.dontPlotObjects	; then switch
@@ -244,6 +244,7 @@ _SONG_POSITION_EVENTS:
 
 	;*--- main loop end ---*
 
+ENDING_CODE:
 	BTST	#6,$BFE001
 	BNE.S	.DontShowRasterTime
 	MOVE.W	#$FF0,$180(A6)	; show rastertime left down to $12c
@@ -713,22 +714,37 @@ __BLIT_GLITCH_PLANE:
 
 __HW_DISPLACE:
 	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
+	CLR.L	D2
+	MOVE.W	$DFF006,D4	; for bug?
+	.waitVisibleRaster:
+	MOVE.W	$DFF006,D4
+	AND.W	#$FF00,D4	; read vertical beam
+	CMP.W	#$3700,D4	; 2C
+	BNE.S	.waitVisibleRaster
 
-	CLR.L	d2
-	move.b	$dff007,d5	; $dff00a $dff00b for mouse pos
-	move.b	$bfd800,d1
-	;MOVE.L	#63,D4		; QUANTE LINEE
-	;.OUTERLOOP:		; NUOVA RIGA
-	;ror.L	#8,d5
-	;DBRA	D4,.OUTERLOOP
-	.loop:
-	move.w	$dff006,d2
-	eor.b	d1,d5
-	MOVE.W	D5,BPLCON1	; 19DEA68E
-	cmp.w	#$FF00,d2
-	bge.s	.loop
-	CLR.W	$100		; DEBUG | w 0 100 2
+	.waitNextRaster:
+	MOVE.W	$DFF006,D2
+	AND.W	#$FF00,D2	; read vertical beam
+	CMP.W	D4,D2
+	BEQ.S	.waitNextRaster
 
+	MOVE.W	D2,D4
+	MOVE.B	$DFF007,D5	; $dff00a $dff00b for mouse pos
+	MOVE.B	$BFD800,D1
+	EOR.B	D1,D5
+	MOVE.W	D5,BPLCON1	; 19DEA68E GLITCHA
+
+	MOVE.W	$DFF004,D0
+	BTST	#0,D0
+	BEQ.S	.waitNextRaster
+	;CLR.W	$100		; DEBUG | w 0 100 2
+	;MOVE.W	$DFF006,D2
+	;AND.W	#$FF00,D2	; read vertical beam
+
+	CMP.W	#$2F00,D2
+	BNE.S	.waitNextRaster
+
+	MOVE.W	#0,BPLCON1	; RESET REGISTER
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
