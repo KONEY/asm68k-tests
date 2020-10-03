@@ -110,7 +110,7 @@ MainLoop:
 	BNE.S	.dontJump	; then switch
 	MOVEM.L	D0-A6,-(SP)
 	;MOVE.W	#$0FF,$180(A6)	; show rastertime left down to $12c
-	MOVE.W	#SONG_POSITION_JUMP,P61_LAST_POS	; RESET POSITION COUNTER
+	MOVE.W	#SONG_POSITION_JUMP+1,P61_LAST_POS	; RESET POSITION COUNTER
 	CLR.L	D0
 	MOVEQ	#SONG_POSITION_JUMP,D0
 	JSR	P61_SetPosition
@@ -149,13 +149,13 @@ SONG_POSITION_EVENTS:
 	BNE.S	.doNothing0
 	CMPI.W	#180,D4		; BEATS * 14frames
 	BLO.S	.doNothing0
-	CMPI.W	#200,D4	
+	CMPI.W	#201,D4	
 	BGE.S	.doNothing0
 	BSR.W	__HW_DISPLACE
 
 	CMPI.W	#200,D4		; BEATS * 14frames
 	BNE.S	.doNothing0
-	CLR.W	$100		; DEBUG | w 0 100 2
+
 	ADD.L	#bpl*h,KONEYBG	; SCROLL 1SCREEN UP
 	BSR.W	__CREAPATCH	; FILL THE BUFFER
 	BSR.W	__CREATESCROLLSPACE; NOW WE USE THE BLITTER HERE!
@@ -186,7 +186,7 @@ SONG_POSITION_EVENTS:
 	BNE.S	.doNothing5
 	CMPI.W	#196,D4		; BEATS * 14frames
 	BNE.S	.doNothing5
-	ADD.L	#bpl*h*2,KONEYBG	; SCROLL 1SCREEN UP
+	ADD.L	#bpl*h*2,KONEYBG	; SCROLL 1SCREEN UP x2
 	BSR.W	__CREAPATCH	; FILL THE BUFFER
 	BSR.W	__CREATESCROLLSPACE; NOW WE USE THE BLITTER HERE!
 	.doNothing5:
@@ -206,7 +206,7 @@ SONG_POSITION_EVENTS:
 	BNE.S	.doNothing4
 	CMPI.W	#196,D4		; BEATS * 14frames
 	BNE.S	.doNothing4
-	ADD.L	#bpl*h*2,KONEYBG	; SCROLL 2 SCREEN UP
+	ADD.L	#bpl*h*2,KONEYBG	; SCROLL 1SCREEN UP x2
 	BSR.W	__CREAPATCH	; FILL THE BUFFER
 	BSR.W	__CREATESCROLLSPACE; NOW WE USE THE BLITTER HERE!
 	.doNothing4:
@@ -217,10 +217,11 @@ SONG_POSITION_EVENTS:
 	MOVE.W	P61_Pos,D5
 	CMPI.W	#40,D5		; seqeunce block position TEST 41!!
 	BNE.S	.dontScroll1	; then switch
+
 	CLR	D5
 	MOVE.W	BGSHIFTOFFSET,D5
 	CMPI.W	#0,D5		; seqeunce block position
-	BEQ.S	.dontScroll1	; then switch
+	BEQ.S	.dontScroll2	; then switch
 	MOVE.W	#0,AUDIOCHANLEVEL0	; Stop FXs
 	MOVE.W	#0,AUDIOCHANLEVEL3	; Stop FXs
 	;MOVE.W	#4,P61_visuctr2	; BASS
@@ -229,8 +230,48 @@ SONG_POSITION_EVENTS:
 	SUB.W	#bpl*h/20,BGSHIFTOFFSET
 	ADD.L	#bpl*h/20,KONEYBG	; SCROLL 1PX UP
 	BSR.W	__CREAPATCH	; FILL THE BUFFER
+
+	LEA	Palette,A1
+	ANDI.W	#1,D4
+	BEQ.S	.even
+	.odd:
+	MOVE.W	#$000,2(A1)	; poke WHITE color now
+	BRA.S	.done
+	.even:
+	MOVE.W	#$555,2(A1)	; poke WHITE color now
+	.done:
+	.dontScroll2:
+
+	CMPI.W	#82,D4
+	BLO.S	.dontResetBg
+	LEA	Palette,A1	; RESET BG
+	MOVE.W	#$000,2(A1)	; RESET BG
+	.dontResetBg:
+
+	;CLR.W	$100		; DEBUG | w 0 100 2
+	CMPI.W	#113,D4
+	BLO.S	.dontDisplace
+	CMPI.W	#122,D4
+	BGE.S	.dontDisplace
+	BSR.W	__HW_DISPLACE
+	.dontDisplace:
+
 	.dontScroll1:
 	; TRIG BG SCROLL
+
+	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
+	; TIMED EVENTS ON SELECTED FRAME ****
+	CMPI.W	#41,D5		; seqeunce block position TEST 41!!
+	BNE.S	.dontScroll6	; then switch
+
+	;CLR.W	$100		; DEBUG | w 0 100 2
+	CMPI.W	#112,D4
+	BLO.S	.dontScroll6
+	CMPI.W	#121,D4
+	BGE.S	.dontScroll6
+	BSR.W	__HW_DISPLACE
+	.dontScroll6:
+
 
 SOUND_TRIGGERED_EVENTS:
 	MOVE.W	AUDIOCHANLEVEL0,D2	; GROOVE 2
@@ -404,7 +445,7 @@ __SET_PT_VISUALS:
 	ROL.L	#$4,D3
 	;ADD.L	#0,D3		; makes color a bit geener
 	ADD.L	D3,D0		; expand bits to red
-	BRA.S  .DONE
+	BRA.S	.done
 	.even:
 	ROL.L	#$4,D3		; expand bits to green
 	ADD.L	#2,D3		; makes color a bit geener
@@ -901,19 +942,21 @@ _TXTSCROLLBUF:
 FRAMESINDEX:	DC.W 4
 
 BG1:	
-	INCBIN	"onePlane_9.raw"
-	INCBIN	"onePlane_8.raw"
-	INCBIN	"onePlane_10_2.raw"
-	INCBIN	"onePlane_5.raw"
-	INCBIN	"onePlane_7.raw"
-	INCBIN	"onePlane_11.raw"
-	INCBIN	"onePlane_4_2.raw"
-	INCBIN	"onePlane_6_2.raw"
-	INCBIN	"onePlane_3.raw"
-	INCBIN	"onePlane_1.raw"
-	INCBIN	"onePlane_12.raw"
-	INCBIN	"onePlane_2.raw"
+	INCBIN	"onePlane_9.raw"		; POS 0
+	INCBIN	"onePlane_8.raw"		; POS 5
+	INCBIN	"onePlane_10_2.raw"	; POS 15
+	INCBIN	"onePlane_13.raw"		; POS 25
+	INCBIN	"onePlane_7.raw"		; POS 29
+	INCBIN	"onePlane_11.raw"		; POS 32
+	INCBIN	"onePlane_4_2.raw"		; POS 37
+	INCBIN	"onePlane_6_2.raw"		; POS 40	SHIFT 1
+	; *** FOR JUMPS AT POS 40	****
+	INCBIN	"onePlane_3.raw"		; POS 40	SHIFT 2
+	INCBIN	"onePlane_1.raw"		; POS 40	SHIFT 3
+	INCBIN	"onePlane_12.raw"		; POS 40	SHIFT 4
+	INCBIN	"onePlane_2.raw"		; POS 41
 	INCBIN	"BG_METAL_320256_4.raw"
+	;INCBIN	"onePlane_5.raw"
 
 FONT:	DC.L	0,0	; SPACE CHAR
 	INCBIN	"scummfnt_8x752.raw",0
