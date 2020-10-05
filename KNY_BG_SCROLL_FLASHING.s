@@ -250,7 +250,7 @@ SONG_POSITION_EVENTS:
 	; TIMED EVENTS ON SELECTED FRAME ****
 	; TRIG BG SCROLL
 	MOVE.W	#0,BGISSHIFTING
-	CMPI.W	#41,D5		; seqeunce block position TEST 41!!
+	CMPI.W	#40,D5		; seqeunce block position TEST 41!!
 	BNE.S	.dontScroll1	; then switch
 
 	CLR	D5
