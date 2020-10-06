@@ -1035,12 +1035,12 @@ BG1:
 	INCBIN	"onePlane_6_2.raw"		; POS 37
 	; *** FOR JUMPS AT POS 40	**** ??
 	INCBIN	"onePlane_3.raw"		; X2
-	INCBIN	"onePlane_1.raw"		; POS 40	SHIFT 1
+	INCBIN	"onePlane_17.raw"		; POS 40	SHIFT 1
 	INCBIN	"onePlane_12.raw"		; POS 40	SHIFT 2
-	INCBIN	"onePlane_2.raw"		; POS 40	SHIFT 3
+	INCBIN	"onePlane_18.raw"		; POS 40	SHIFT 3
 	INCBIN	"BG_METAL_320256_4.raw"	; POS 40	SHIFT 4
 					; POS 41
-	INCBIN	"onePlane_14.raw"		; POS 60
+	INCBIN	"onePlane_16.raw"		; POS 60
 
 
 FONT:	DC.L	0,0	; SPACE CHAR
