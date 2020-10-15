@@ -139,7 +139,7 @@ __BLITINPLACE:
 	;LEA	BG1,A3
 	MOVE.L	KONEYBG,A3
 	MOVE.L	ScrollBuffer,A4
-	ADD.W	#10240,A4		; NEXT BITPLANE (?)
+	;ADD.W	#10240,A4		; NEXT BITPLANE (?)
 	BTST.B	#6,DMACONR		; for compatibility
 	bsr	WaitBlitter
 
@@ -152,22 +152,44 @@ __BLITINPLACE:
 	MOVE.W	#0,BLTAMOD		; BLTAMOD =0 perche` il rettangolo
 	MOVE.W	#0,BLTDMOD		; BLTDMOD 40-4=36 il rettangolo
 
-	MOVE.W	#blitsize,BLTSIZE	; BLTSIZE (via al blitter !)
+	MOVE.W	#blitsize,BLTSIZE		; BLTSIZE (via al blitter !)
+
+	bsr	WaitBlitter
+	ADD.W	#10240,A3		; NEXT BITPLANE (?)
+	ADD.W	#10240,A4		; NEXT BITPLANE (?)
+	MOVE.L	A3,BLTAPTH		; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	A4,BLTDPTH
+	MOVE.W	#blitsize,BLTSIZE		; BLTSIZE (via al blitter !)
+
+	bsr	WaitBlitter
+	ADD.W	#10240,A3		; NEXT BITPLANE (?)
+	ADD.W	#10240,A4		; NEXT BITPLANE (?)
+	MOVE.L	A3,BLTAPTH		; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	A4,BLTDPTH
+	MOVE.W	#blitsize,BLTSIZE		; BLTSIZE (via al blitter !)
+
+	bsr	WaitBlitter
+	ADD.W	#10240,A3		; NEXT BITPLANE (?)
+	ADD.W	#10240,A4		; NEXT BITPLANE (?)
+	MOVE.L	A3,BLTAPTH		; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	A4,BLTDPTH
+	MOVE.W	#blitsize,BLTSIZE		; BLTSIZE (via al blitter !)
+
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
 __SCROLL_BG:
 	MOVEM.L	D0-A6,-(SP)		; SAVE TO STACK
 	MOVE.L	ScrollBuffer,A4
-	ADD.L	#10240,A4
-	ADD.L	#10240,A4
+	;ADD.L	#10240,A4
+	;ADD.L	#10240,A4
 	BTST.B	#6,DMACONR		; for compatibility
 	bsr	WaitBlitter
 
 	MOVE.W	#$FFFF,BLTAFWM		; BLTAFWM lo spiegheremo dopo
 	MOVE.W	#$FFFF,BLTALWM		; BLTALWM lo spiegheremo dopo
-	MOVE.W	#%0010100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
-	MOVE.W	#%0000000000000010,BLTCON1	; BLTCON1 BIT 12 DESC MODE 0000000000000010
+	MOVE.W	#%0001100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
+	MOVE.W	#%0000000000000000,BLTCON1	; BLTCON1 BIT 12 DESC MODE 0000000000000010
 	MOVE.W	#0,BLTAMOD		; BLTAMOD =0 perche` il rettangolo
 	MOVE.W	#0,BLTDMOD		; BLTDMOD 40-4=36 il rettangolo
 
@@ -176,9 +198,24 @@ __SCROLL_BG:
 
 	MOVE.W	#blitsize,BLTSIZE		; BLTSIZE (via al blitter !)
 	
-	;MOVE.W	#%000000000000000,BLTCON1	; BLTCON1 BIT 12 DESC MODE 0000000000000010
-	;SUB.L	#blitsize-2,A4
-	;MOVE.W	#blitsize,BLTSIZE		; BLTSIZE (via al blitter !)
+	bsr	WaitBlitter
+	MOVE.W	#%0010100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
+	MOVE.W	#%000000000000010,BLTCON1	; BLTCON1 BIT 12 DESC MODE 0000000000000010
+	ADD.L	#10240,A4
+	ADD.L	#10240,A4
+	MOVE.L	A4,BLTAPTH		; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	A4,BLTDPTH
+	MOVE.W	#blitsize,BLTSIZE		; BLTSIZE (via al blitter !)
+
+	bsr	WaitBlitter
+	MOVE.W	#%0100100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
+	MOVE.W	#%000000000000010,BLTCON1	; BLTCON1 BIT 12 DESC MODE 0000000000000010
+	ADD.L	#10240,A4
+	ADD.L	#10240,A4
+	;ADD.L	#10240,A4
+	MOVE.L	A4,BLTAPTH		; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	A4,BLTDPTH
+	MOVE.W	#blitsize,BLTSIZE		; BLTSIZE (via al blitter !)
 
 	MOVEM.L	(SP)+,D0-A6		; FETCH FROM STACK
 	RTS
@@ -230,7 +267,7 @@ PALETTEBUFFERED:
 	SECTION	ChipData,DATA_C	;declared data that must be in chipmem
 	;*******************************************************************************
 
-BG1:	INCBIN	"BG_METAL2_320256_4.raw"
+BG1:	INCBIN	"dithermirrorbg_3.raw"
 _BG1:
 
 Copper:
