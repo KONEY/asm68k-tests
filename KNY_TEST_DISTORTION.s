@@ -577,10 +577,9 @@ __SHIFTTEXT:
 				; bytes. Il rettangolo blittato
 				; e` largo 2 words, cioe` 4 bytes.
 				; Il valore del modulo e` dato dalla
-				; differenza tra le larghezze
 
-	MOVE.L	#_TXTSCROLLBUF-2,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
-	MOVE.L	#_TXTSCROLLBUF-2,BLTDPTH
+	MOVE.L	#TXTSCROLLBUF+360,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	#TXTSCROLLBUF+360,BLTDPTH
 
 	MOVE.W	#9*64+320/16,BLTSIZE	; BLTSIZE (via al blitter !)
 				; adesso, blitteremo una figura di
@@ -895,9 +894,6 @@ POS16_REACHED:	DC.B 0
 
 KONEY2X:	INCBIN	"koney10x64.raw"
 
-TXTSCROLLBUF:	DS.B (bpl)*9
-_TXTSCROLLBUF:
-
 FRAMESINDEX:	DC.W 4
 
 BG1:	
@@ -997,5 +993,5 @@ Module1:	INCBIN	"FatalDefrag_v4.P61"	; code $9104
 SCREEN1:		DS.B h*bwid	; Define storage for buffer 1
 SCREEN2:		DS.B h*bwid	; two buffers
 GLITCHBUFFER:	DS.B h*3*bpl	; some free space for glitch
-
+TXTSCROLLBUF:	DS.B (bpl)*9
 	END
