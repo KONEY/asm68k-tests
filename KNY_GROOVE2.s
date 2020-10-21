@@ -388,9 +388,12 @@ __SHIFTTEXT:
 				; e` largo 2 words, cioe` 4 bytes.
 				; Il valore del modulo e` dato dalla
 				; differenza tra le larghezze
+	MOVE.L	CIPPA,A3	
+	ADD.W	#bpl*8,A3
+	SUB.W	#2,A3
 
-	MOVE.L	#_TXTSCROLLBUF-2,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
-	MOVE.L	#_TXTSCROLLBUF-2,BLTDPTH
+	MOVE.L	A3,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	A3,BLTDPTH
 
 	MOVE.W	#8*64+320/16,BLTSIZE	; BLTSIZE (via al blitter !)
 				; adesso, blitteremo una figura di
@@ -516,6 +519,7 @@ AUDIOCHANLEVEL1:	DC.W 0
 AUDIOCHANLEVEL2:	DC.W 0
 AUDIOCHANLEVEL3:	DC.W 0
 
+CIPPA:		DC.L TXTSCROLLBUF		; INIT BG
 KONEYBG:		DC.L BG1		; INIT BG
 DrawBuffer:	DC.L SCREEN2	; pointers to buffers to be swapped
 ViewBuffer:	DC.L SCREEN1
@@ -554,9 +558,6 @@ POS16_REACHED:	DC.B 0
 	;*******************************************************************************
 
 KONEY2X:	INCBIN	"koney10x64.raw"
-
-TXTSCROLLBUF:	DS.B (bpl)*8
-_TXTSCROLLBUF:
 
 FRAMESINDEX:	DC.W 4
 
@@ -643,5 +644,5 @@ Module1:	INCBIN	"FatalDefrag_v3.P61"	; code $9104
 SCREEN1:		DS.B h*bwid	;Define storage for buffer 1
 SCREEN2:		DS.B h*bwid	;two buffers
 ;GLITCHBUFFER:	DS.B h*bwid	; some free space to avoid glitch
-
+TXTSCROLLBUF:	DS.B h*bwid
 	END

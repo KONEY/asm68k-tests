@@ -6,16 +6,13 @@
 	;INCLUDE	"PT12_OPTIONS.i"
 	;INCLUDE	"P6112-Play-stripped.i"
 ;********** Constants **********
-w=	336		;screen width, height, depth
+w=	320		;screen width, height, depth
 h=	256
 bpls=	4		;handy values:
 bpl=	w/16*2		;byte-width of 1 bitplane line (40)
 bwid=	bpls*bpl		;byte-width of 1 pixel line (all bpls)
-bwid2=	bpls*(w-16)/16*2
-blitsize=	h*64+w/16	;
-blitsize2=	h*64+(w-16)/16	;16404
-bplsize=	bpl*h		;
-bplsize2=	(w-16)/16*2*h	;10240
+blitsize=	h*64+w/16	;16404
+bplsize=	bpl*h		;10240
 ;*************
 
 ;********** Demo **********	;Demo-specific non-startup code below.
@@ -57,7 +54,7 @@ MainLoop:
 	movem.l	a2-a3,DrawBuffer	;draw into a2, show a3
 	;*--- show one... ---*
 	move.l	a3,a0
-	move.l	#bpl*h,d0
+	move.l	#bpl*256,d0
 	lea	BplPtrs+2,a1
 	moveq	#bpls-1,d1
 	bsr.w	PokePtrs
@@ -65,7 +62,7 @@ MainLoop:
 	move.l	a2,a1
 	;bsr	ClearScreen
 
-	MOVE.L	KONEYBG,DrawBuffer
+	MOVE.L	ScrollBuffer,DrawBuffer
 
 	; do stuff here :)
 
@@ -127,54 +124,66 @@ __InitCopperPalette:
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
-__BLITINPLACE:
+__SCROLL_BG:
 	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
-	;LEA	BG1,A3
 	MOVE.L	KONEYBG,A3
 	MOVE.L	ScrollBuffer,A4
 	BTST.B	#6,DMACONR		; for compatibility
+	
+	CLR.L	D0
+	MOVE.W	BGSCROLLPOS,D0
+	MOVE.W	#%0000100111110000,D1
+	;LSL.W	#8,D0
+	ROR.W	#4,D0
+	CLR.W	$100			; DEBUG | w 0 100 2
+	OR.W	D1,D0
+	MOVE.W	BGSCROLLPOS,D1
+	SUB.W	#1,D1
+	CMP.W	#0,D1
+	BNE.S	.ok	
+	MOVE.W	#15,D1
+	.ok:
+	MOVE.W	D1,BGSCROLLPOS
 	bsr	WaitBlitter
 
 	MOVE.L	A3,BLTAPTH		; BLTAPT  (fisso alla figura sorgente)
 	MOVE.L	A4,BLTDPTH
 	MOVE.W	#$FFFF,BLTAFWM		; BLTAFWM lo spiegheremo dopo
 	MOVE.W	#$FFFF,BLTALWM		; BLTALWM lo spiegheremo dopo
-	MOVE.W	#%0000100111110000,BLTCON0	; BLTCON0 (usa A+D)
+	MOVE.W	D0,BLTCON0		; BLTCON0 (usa A+D)
 	MOVE.W	#%0000000000000000,BLTCON1	; BLTCON1 lo spiegheremo dopo
-	MOVE.W	#0,BLTAMOD		; BLTAMOD =0 perche` il rettangolo
+	MOVE.W	#2,BLTAMOD		; BLTAMOD =0 perche` il rettangolo
 	MOVE.W	#0,BLTDMOD		; BLTDMOD 40-4=36 il rettangolo
 
 	MOVE.W	#blitsize,BLTSIZE		; BLTSIZE (via al blitter !)
-	;MOVE.W	#blitsize2,BLTSIZE		; BLTSIZE (via al blitter !)
-	;MOVE.W	#blitsize2,BLTSIZE		; BLTSIZE (via al blitter !)
-	;MOVE.W	#blitsize2,BLTSIZE		; BLTSIZE (via al blitter !)
+	bsr	WaitBlitter
+	MOVE.W	#blitsize,BLTSIZE		; BLTSIZE (via al blitter !)
+	bsr	WaitBlitter
+	MOVE.W	#blitsize,BLTSIZE		; BLTSIZE (via al blitter !)
+	bsr	WaitBlitter
+	MOVE.W	#blitsize,BLTSIZE		; BLTSIZE (via al blitter !)
 
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
-__SCROLL_BG:
+__SCROLL_BG_SHIFT:
+	RTS
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
-	MOVE.L	KONEYBG,A4
+	MOVE.L	ScrollBuffer,A4
 	BTST.B	#6,DMACONR	; for compatibility
 	bsr	WaitBlitter
 
-	MOVE.L	A4,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
-	MOVE.L	A4,BLTDPTH
 	MOVE.W	#$FFFF,BLTAFWM	; BLTAFWM lo spiegheremo dopo
 	MOVE.W	#$FFFF,BLTALWM	; BLTALWM lo spiegheremo dopo
 	MOVE.W	#%1000100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
-	MOVE.W	#%0000000000000000,BLTCON1	; BLTCON1 BIT 12 DESC MODE
-	MOVE.W	#2,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
-	MOVE.W	#2,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
-	;ADD.W	#bplsize2,A4	; NEXT BITPLANE (?)
+	MOVE.W	#%0000000000000010,BLTCON1	; BLTCON1 BIT 12 DESC MODE
+	MOVE.W	#0,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
+	MOVE.W	#0,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
+	ADD.W	#bplsize,A4	; NEXT BITPLANE (?)
+	MOVE.L	A4,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	A4,BLTDPTH
 
-	MOVE.W	#blitsize2,BLTSIZE	; BLTSIZE (via al blitter !)
-	bsr	WaitBlitter
-	MOVE.W	#blitsize2,BLTSIZE	; BLTSIZE (via al blitter !)
-	bsr	WaitBlitter
-	MOVE.W	#blitsize2,BLTSIZE	; BLTSIZE (via al blitter !)
-	bsr	WaitBlitter
-	MOVE.W	#blitsize2,BLTSIZE	; BLTSIZE (via al blitter !)
+	MOVE.W	#blitsize,BLTSIZE	; BLTSIZE (via al blitter !)
 
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
@@ -212,21 +221,24 @@ ViewBuffer:	DC.L SCREEN1	;
 ScrollBuffer:	DC.L SCREEN3	;
 KONEYBG:		DC.L BG1		; INIT BG
 
+BGSCROLLPOS:	DC.W 15
+
 GLITCHER_SRC:	DC.L 0
 GLITCHER_DEST:	DC.L 0
 GLITCHER_DPH:	DC.L 0
 
-PALETTEBUFFERED:	INCLUDE	"BLITTER_MARGIN_PALETTE.s"
-	;DC.W $0180,$0031,$0182,$0000,$0184,$0111,$0186,$0122
-	;DC.W $0188,$0333,$018A,$0444,$018C,$0555,$018E,$0556
-	;DC.W $0190,$0666,$0192,$0888,$0194,$0999,$0196,$0AAA
-	;DC.W $0198,$09AA,$019A,$0FFF,$019C,$0FFF,$019E,$0FFF
+PALETTEBUFFERED:
+	dc.w	$0180,$0fff,$0182,$0ccc,$0184,$0aaa,$0186,$0999
+	dc.w	$0188,$0888,$018a,$0777,$018c,$0777,$018e,$0666
+	dc.w	$0190,$0555,$0192,$0444,$0194,$0333,$0196,$0222
+	dc.w	$0198,$0111,$019a,$0111,$019c,$0000,$019e,$0000
 
 	;*******************************************************************************
 	SECTION	ChipData,DATA_C	;declared data that must be in chipmem
 	;*******************************************************************************
 
-BG1:	INCBIN	"BLITTER_MARGIN.raw"
+BG1:	;INCBIN	"onePlane_10.raw"
+	INCBIN	"BLITTER_MARGIN.raw"
 
 Copper:
 	DC.W $1FC,0	;Slow fetch mode, remove if AGA demo.
@@ -236,8 +248,8 @@ Copper:
 	DC.W $94,$D0	;and stop for standard screen.
 
 	DC.W $106,$0C00	;(AGA compat. if any Dual Playf. mode)
-	DC.W $108,2	;bwid-bpl	;modulos
-	DC.W $10A,2	;bwid-bpl	;RISULTATO = 80 ?
+	DC.W $108,0	;bwid-bpl	;modulos
+	DC.W $10A,0	;bwid-bpl	;RISULTATO = 80 ?
 
 	DC.W $102,0	;SCROLL REGISTER (AND PLAYFIELD PRI)
 
@@ -285,6 +297,7 @@ COPPERWAITS:
 
 	DC.W $FFFF,$FFFE	;magic value to end copperlist
 _Copper:
+
 
 ;*******************************************************************************
 	SECTION ChipBuffers,BSS_C	;BSS doesn't count toward exe size
