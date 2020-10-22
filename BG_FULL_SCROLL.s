@@ -16,6 +16,8 @@ blitsize=	h*64+w/16	;
 blitsize2=	h*64+(w-16)/16	;16404
 bplsize=	bpl*h		;
 bplsize2=	(w-16)/16*2*h	;10240
+blitsizeHF=h*bpls/2*64+w/16
+blitsizeHF2=h*bpls/2*64+(w-16)/16
 ;*************
 
 ;********** Demo **********	;Demo-specific non-startup code below.
@@ -69,14 +71,15 @@ MainLoop:
 
 	; do stuff here :)
 
-	BSR.W	__SCROLL_BG	; SHIFT DATI BUFFER?
+	;BSR.W	__SCROLL_BG	; SHIFT DATI BUFFER?
 
 	;*--- main loop end ---*
 
 	ENDING_CODE:
 	BTST	#6,$BFE001
 	BNE.S	.DontShowRasterTime
-	MOVE.W	#$FF0,$180(A6)	; show rastertime left down to $12c
+	;MOVE.W	#$FF0,$180(A6)	; show rastertime left down to $12c
+	BSR.W	__SCROLL_BG	; SHIFT DATI BUFFER?
 	.DontShowRasterTime:
 	BTST	#2,$DFF016	; POTINP - RMB pressed?
 	BNE.W	MainLoop		; then loop
@@ -162,19 +165,18 @@ __SCROLL_BG:
 	MOVE.L	A4,BLTDPTH
 	MOVE.W	#$FFFF,BLTAFWM	; BLTAFWM lo spiegheremo dopo
 	MOVE.W	#$FFFF,BLTALWM	; BLTALWM lo spiegheremo dopo
-	MOVE.W	#%1000100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
+	MOVE.W	#%0001100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
 	MOVE.W	#%0000000000000000,BLTCON1	; BLTCON1 BIT 12 DESC MODE
-	MOVE.W	#2,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
-	MOVE.W	#2,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
-	;ADD.W	#bplsize2,A4	; NEXT BITPLANE (?)
+	MOVE.W	#0,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
+	MOVE.W	#0,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
 
-	MOVE.W	#blitsize2,BLTSIZE	; BLTSIZE (via al blitter !)
+	MOVE.W	#blitsize,BLTSIZE	; BLTSIZE (via al blitter !)
 	bsr	WaitBlitter
-	MOVE.W	#blitsize2,BLTSIZE	; BLTSIZE (via al blitter !)
+	MOVE.W	#blitsize,BLTSIZE	; BLTSIZE (via al blitter !)
 	bsr	WaitBlitter
-	MOVE.W	#blitsize2,BLTSIZE	; BLTSIZE (via al blitter !)
+	MOVE.W	#blitsize,BLTSIZE	; BLTSIZE (via al blitter !)
 	bsr	WaitBlitter
-	MOVE.W	#blitsize2,BLTSIZE	; BLTSIZE (via al blitter !)
+	MOVE.W	#blitsize,BLTSIZE	; BLTSIZE (via al blitter !)
 
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
