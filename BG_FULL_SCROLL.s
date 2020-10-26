@@ -13,7 +13,8 @@ bpl=	w/16*2		;byte-width of 1 bitplane line (40)
 bwid=	bpls*bpl		;byte-width of 1 pixel line (all bpls)
 bwid2=	bpls*(w-16)/16*2
 blitsize=	h*64+w/16	;
-blitsize2=	h*64+(w-16)/16	;16404
+blitsize2=	h*64*2+w/16	;16404
+blitsizeF=%000000000000010101
 bplsize=	bpl*h		;
 bplsize2=	(w-16)/16*2*h	;10240
 blitsizeHF=h*bpls/2*64+w/16
@@ -71,15 +72,15 @@ MainLoop:
 
 	; do stuff here :)
 
-	;BSR.W	__SCROLL_BG	; SHIFT DATI BUFFER?
+	BSR.W	__SCROLL_BG	; SHIFT DATI BUFFER?
 
 	;*--- main loop end ---*
 
 	ENDING_CODE:
 	BTST	#6,$BFE001
 	BNE.S	.DontShowRasterTime
-	;MOVE.W	#$FF0,$180(A6)	; show rastertime left down to $12c
-	BSR.W	__SCROLL_BG	; SHIFT DATI BUFFER?
+	MOVE.W	#$FF0,$180(A6)	; show rastertime left down to $12c
+	;BSR.W	__SCROLL_BG	; SHIFT DATI BUFFER?
 	.DontShowRasterTime:
 	BTST	#2,$DFF016	; POTINP - RMB pressed?
 	BNE.W	MainLoop		; then loop
@@ -165,18 +166,29 @@ __SCROLL_BG:
 	MOVE.L	A4,BLTDPTH
 	MOVE.W	#$FFFF,BLTAFWM	; BLTAFWM lo spiegheremo dopo
 	MOVE.W	#$FFFF,BLTALWM	; BLTALWM lo spiegheremo dopo
-	MOVE.W	#%0001100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
+	MOVE.W	#%0011100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
 	MOVE.W	#%0000000000000000,BLTCON1	; BLTCON1 BIT 12 DESC MODE
 	MOVE.W	#0,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
 	MOVE.W	#0,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
 
-	MOVE.W	#blitsize,BLTSIZE	; BLTSIZE (via al blitter !)
+	MOVE.W	#blitsizeF,BLTSIZE	; BLTSIZE (via al blitter !)
 	bsr	WaitBlitter
-	MOVE.W	#blitsize,BLTSIZE	; BLTSIZE (via al blitter !)
+	;MOVE.W	#blitsize2,BLTSIZE	; BLTSIZE (via al blitter !)
+
+	; PATCH FIRST WORD COLUMN
 	bsr	WaitBlitter
-	MOVE.W	#blitsize,BLTSIZE	; BLTSIZE (via al blitter !)
-	bsr	WaitBlitter
-	MOVE.W	#blitsize,BLTSIZE	; BLTSIZE (via al blitter !)
+	MOVE.L	A4,BLTDPTH
+	MOVE.L	A4,BLTCPTH	; destination data (from the C channel)
+	ADD.L	#40,A4
+	MOVE.L	A4,BLTBPTH
+	;MOVE.L	A4,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+	MOVE.W	#$E000,BLTAFWM	; BLTAFWM lo spiegheremo dopo
+	MOVE.W	#%0000011111001010,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
+	MOVE.W	#40,BLTBMOD	; BLTAMOD =0 perche` il rettangolo
+	MOVE.W	#40,BLTCMOD	; BLTAMOD =0 perche` il rettangolo
+	MOVE.W	#40,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
+
+	MOVE.W	#%0000000000000001,BLTSIZE	; BLTSIZE (via al blitter !)
 
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
@@ -218,7 +230,7 @@ GLITCHER_SRC:	DC.L 0
 GLITCHER_DEST:	DC.L 0
 GLITCHER_DPH:	DC.L 0
 
-PALETTEBUFFERED:	INCLUDE	"BLITTER_MARGIN_PALETTE.s"
+PALETTEBUFFERED:	INCLUDE "BLITTER_MARGIN_PALETTE.s"
 	;DC.W $0180,$0031,$0182,$0000,$0184,$0111,$0186,$0122
 	;DC.W $0188,$0333,$018A,$0444,$018C,$0555,$018E,$0556
 	;DC.W $0190,$0666,$0192,$0888,$0194,$0999,$0196,$0AAA
@@ -296,4 +308,4 @@ SCREEN1:		DS.B h*bwid	; Define storage for buffer 1
 SCREEN2:		DS.B h*bwid	; two buffers
 SCREEN3:		DS.B h*bwid	; two buffers
 
-	END
+END
