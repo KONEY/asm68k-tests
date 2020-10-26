@@ -172,8 +172,6 @@ __SCROLL_BG:
 	MOVE.W	#0,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
 
 	MOVE.W	#blitsizeF,BLTSIZE	; BLTSIZE (via al blitter !)
-	bsr	WaitBlitter
-	;MOVE.W	#blitsize2,BLTSIZE	; BLTSIZE (via al blitter !)
 
 	; PATCH FIRST WORD COLUMN
 	bsr	WaitBlitter
