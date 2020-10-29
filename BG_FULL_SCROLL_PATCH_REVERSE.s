@@ -46,7 +46,6 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
 	BSR.W	__InitCopperPalette
 	;BSR.W	__BLITINPLACE	; FIRST BLITTATA
-	;BSR.W	__SCROLL_BG	; SHIFT DATI BUFFER?
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
 
 	MOVE.L	#Copper,$80(a6)
@@ -157,42 +156,38 @@ __BLITINPLACE:
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
-SPEED	EQU	4
-
 __SCROLL_BG:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
-	MOVE.L	KONEYBG,A4
 	BTST.B	#6,DMACONR	; for compatibility
-	bsr	WaitBlitter
 
-	MOVE.L	A4,BLTAPTH		; BLTAPT  (fisso alla figura sorgente)
-	MOVE.L	A4,BLTDPTH
-	MOVE.W	#$FFFF,BLTAFWM		; BLTAFWM lo spiegheremo dopo
-	MOVE.W	#$FFFF,BLTALWM		; BLTAFWM lo spiegheremo dopo
-	;MOVE.W	#~(1<<SPEED-1),BLTALWM	; BLTALWM lo spiegheremo dopo
-	MOVE.W	#(SPEED<<12)+%100111110000,BLTCON0
-	MOVE.W	#%0000000000000000,BLTCON1	; BLTCON1 BIT 12 DESC MODE
-	MOVE.W	#0,BLTAMOD		; BLTAMOD =0 perche` il rettangolo
-	MOVE.W	#0,BLTDMOD		; BLTDMOD 40-4=36 il rettangolo
-
-	MOVE.W	#blitsizeF,BLTSIZE		; BLTSIZE (via al blitter !)
-
+	MOVE.L	KONEYBG,A4
 	; PATCH FIRST WORD COLUMN
 	bsr	WaitBlitter
-	MOVEQ	#bpl-2,D0
-	MOVE.L	A4,BLTAPTH		; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	A4,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+	ADD.L	#bpl-2,A4
 	MOVE.L	A4,BLTDPTH
-	ADD.L	D0,A4
-	MOVE.L	A4,BLTBPTH
-	MOVE.W	#$FFFF,BLTALWM		; BLTALWM lo spiegheremo dopo
-	MOVE.W	#%0000110111100100,BLTCON0	; d = ac+b!c = abc+a!bc+ab!c+!ab!c = %11100100 = $e4
-	MOVE.W	#$FFFF>>SPEED,D1
-	MOVE.W	D1,BLTCDAT
-	MOVE.W	D0,BLTAMOD
-	MOVE.W	D0,BLTBMOD
-	MOVE.W	D0,BLTDMOD
+	MOVE.W	#$FFFF,BLTAFWM	; BLTAFWM lo spiegheremo dopo
+	MOVE.W	#$FFFF,BLTALWM	; BLTALWM lo spiegheremo dopo
+	MOVE.W	#%0000100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
+	MOVE.W	#%0000000000000000,BLTCON1	; BLTCON1 BIT 12 DESC MODE
+	MOVE.W	#bpl-2,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
+	MOVE.W	#bpl-2,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
 
 	MOVE.W	#%0000000000000001,BLTSIZE	; BLTSIZE (via al blitter !)
+
+	bsr	WaitBlitter
+	MOVE.L	KONEYBG,A4
+	ADD.L	#bwid*h-2,A4
+	MOVE.L	A4,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	A4,BLTDPTH
+	MOVE.W	#$FFFF,BLTAFWM	; BLTAFWM lo spiegheremo dopo
+	MOVE.W	#$FFFF,BLTALWM	; BLTALWM lo spiegheremo dopo
+	MOVE.W	#%0011100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
+	MOVE.W	#%0000000000000010,BLTCON1	; BLTCON1 BIT 12 DESC MODE
+	MOVE.W	#0,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
+	MOVE.W	#0,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
+
+	MOVE.W	#blitsizeF,BLTSIZE	; BLTSIZE (via al blitter !)
 
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
