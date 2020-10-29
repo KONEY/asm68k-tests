@@ -11,13 +11,9 @@ h=	256
 bpls=	4		;handy values:
 bpl=	w/16*2		;byte-width of 1 bitplane line (40)
 bwid=	bpls*bpl		;byte-width of 1 pixel line (all bpls)
-bwid2=	bpls*(w-16)/16*2
 blitsize=	h*64+w/16	;
-blitsize2=	h*64*2+w/16	;16404
+blitsizeF=%000000000000010101
 bplsize=	bpl*h		;
-bplsize2=	(w-16)/16*2*h	;10240
-blitsizeHF=h*bpls/2*64+w/16
-blitsizeHF2=h*bpls/2*64+(w-16)/16
 ;*************
 
 ;********** Demo **********	;Demo-specific non-startup code below.
@@ -44,7 +40,6 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
 	BSR.W	__InitCopperPalette
-	;BSR.W	__BLITINPLACE	; FIRST BLITTATA
 	BSR.W	__ADD_BLITTER_WORD
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
 
@@ -72,7 +67,18 @@ MainLoop:
 
 	; do stuff here :)
 
-	BSR.W	__SCROLL_BG	; SHIFT DATI BUFFER?
+	MOVE.L	BGPLANE0,SCROLL_PLANE
+	MOVE.B	#2,SCROLL_SHIFT
+	BSR.W	__SCROLL_BG_LEFT	; SHIFT LEFT
+	MOVE.L	BGPLANE1,SCROLL_PLANE
+	MOVE.B	#3,SCROLL_SHIFT
+	BSR.W	__SCROLL_BG_LEFT	; SHIFT LEFT
+	MOVE.L	BGPLANE2,SCROLL_PLANE
+	MOVE.B	#5,SCROLL_SHIFT
+	BSR.W	__SCROLL_BG_LEFT	; SHIFT LEFT
+	MOVE.L	BGPLANE3,SCROLL_PLANE
+	MOVE.B	#7,SCROLL_SHIFT
+	BSR.W	__SCROLL_BG_LEFT	; SHIFT LEFT
 
 	;*--- main loop end ---*
 
@@ -80,7 +86,7 @@ MainLoop:
 	BTST	#6,$BFE001
 	BNE.S	.DontShowRasterTime
 	MOVE.W	#$FF0,$180(A6)	; show rastertime left down to $12c
-	;BSR.W	__SCROLL_BG	; SHIFT DATI BUFFER?
+
 	.DontShowRasterTime:
 	BTST	#2,$DFF016	; POTINP - RMB pressed?
 	BNE.W	MainLoop		; then loop
@@ -131,90 +137,6 @@ __InitCopperPalette:
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
-__BLITINPLACE:
-	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
-	;LEA	BG1,A3
-	MOVE.L	KONEYBG,A3
-	MOVE.L	ScrollBuffer,A4
-	BTST.B	#6,DMACONR		; for compatibility
-	bsr	WaitBlitter
-
-	MOVE.L	A3,BLTAPTH		; BLTAPT  (fisso alla figura sorgente)
-	MOVE.L	A4,BLTDPTH
-	MOVE.W	#$FFFF,BLTAFWM		; BLTAFWM lo spiegheremo dopo
-	MOVE.W	#$FFFF,BLTALWM		; BLTALWM lo spiegheremo dopo
-	MOVE.W	#%0000100111110000,BLTCON0	; BLTCON0 (usa A+D)
-	MOVE.W	#%0000000000000000,BLTCON1	; BLTCON1 lo spiegheremo dopo
-	MOVE.W	#0,BLTAMOD		; BLTAMOD =0 perche` il rettangolo
-	MOVE.W	#0,BLTDMOD		; BLTDMOD 40-4=36 il rettangolo
-
-	MOVE.W	#blitsize,BLTSIZE		; BLTSIZE (via al blitter !)
-	;MOVE.W	#blitsize2,BLTSIZE		; BLTSIZE (via al blitter !)
-	;MOVE.W	#blitsize2,BLTSIZE		; BLTSIZE (via al blitter !)
-	;MOVE.W	#blitsize2,BLTSIZE		; BLTSIZE (via al blitter !)
-
-	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
-	RTS
-
-__SCROLL_BG:
-	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
-	MOVE.L	KONEYBG,A4
-	BTST.B	#6,DMACONR	; for compatibility
-	bsr	WaitBlitter
-
-	MOVE.L	A4,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
-	MOVE.L	A4,BLTDPTH
-	MOVE.W	#$FFFF,BLTAFWM	; BLTAFWM lo spiegheremo dopo
-	MOVE.W	#$FFFF,BLTALWM	; BLTALWM lo spiegheremo dopo
-	MOVE.W	#%0001100111110000,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
-	MOVE.W	#%0000000000000000,BLTCON1	; BLTCON1 BIT 12 DESC MODE
-	MOVE.W	#0,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
-	MOVE.W	#0,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
-
-	MOVE.W	#blitsize2,BLTSIZE	; BLTSIZE (via al blitter !)
-	bsr	WaitBlitter
-	MOVE.W	#blitsize2,BLTSIZE	; BLTSIZE (via al blitter !)
-
-	; PATCH FIRST WORD COLUMN
-	bsr	WaitBlitter
-	MOVE.L	A4,BLTDPTH
-	MOVE.L	A4,BLTCPTH	; destination data (from the C channel)
-	ADD.L	#40,A4
-	MOVE.L	A4,BLTBPTH
-	;MOVE.L	A4,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
-	MOVE.W	#$8000,BLTAFWM	; BLTAFWM lo spiegheremo dopo
-	MOVE.W	#%0000011111001010,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
-	MOVE.W	#40,BLTBMOD	; BLTAMOD =0 perche` il rettangolo
-	MOVE.W	#40,BLTCMOD	; BLTAMOD =0 perche` il rettangolo
-	MOVE.W	#40,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
-
-	MOVE.W	#%1000000000000001,BLTSIZE	; BLTSIZE (via al blitter !)
-	bsr	WaitBlitter
-	MOVE.W	#%1000000000000001,BLTSIZE	; BLTSIZE (via al blitter !)
-
-	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
-	RTS
-
-; FILLS A BUFFER WITH RANDOM DATA
-__FILLRNDBG:
-	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
-	MOVE.L	GLITCHER_DEST,A4	; SOURCE DATA
-	MOVE.L	GLITCHER_DPH,D1	; UGUALI PER TUTTI I BITPLANE
-	.BITPLANESLOOP:
-	CLR	D4
-	MOVE.B	#h-1,D4		; QUANTE LINEE
-	.OUTERLOOP:		; NUOVA RIGA
-	CLR	D6
-	MOVE.B	#bpl-1,D6		; RESET D6
-	.INNERLOOP:
-	BSR.S	_RandomWord
-	MOVE.B	D5,(A4)+
-	DBRA	D6,.INNERLOOP
-	DBRA	D4,.OUTERLOOP
-	DBRA	D1,.BITPLANESLOOP
-	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
-	RTS
-
 __ADD_BLITTER_WORD:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
 	LEA	BG1_DATA,A0
@@ -233,25 +155,105 @@ __ADD_BLITTER_WORD:
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
-_RandomWord:	bsr	_RandomByte
-		rol.w	#8,d5
-_RandomByte:	move.b	$dff007,d5	;$dff00a $dff00b for mouse pos
-		move.b	$bfd800,d3
-		eor.b	d3,d5
-		rts
+__SCROLL_BG_LEFT:
+	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
+	BTST.B	#6,DMACONR	; for compatibility
+
+	MOVE.W	#%0000100111110000,D1
+
+	MOVE.L	SCROLL_PLANE,A4	; PATCH FIRST WORD COLUMN
+	bsr	WaitBlitter
+	MOVE.L	A4,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+	ADD.L	#bpl-2,A4		; POSITION FOR DESC
+	MOVE.L	A4,BLTDPTH
+	MOVE.W	#$FFFF,BLTAFWM	; BLTAFWM lo spiegheremo dopo
+	MOVE.W	#$FFFF,BLTALWM	; BLTALWM lo spiegheremo dopo
+	MOVE.W	D1,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
+	MOVE.W	#%0000000000000000,BLTCON1	; BLTCON1 BIT 12 DESC MODE
+	MOVE.W	#bpl-2,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
+	MOVE.W	#bpl-2,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
+
+	MOVE.W	#(h<<6)+%000001,BLTSIZE	; BLTSIZE (via al blitter !)
+
+	MOVE.L	SCROLL_PLANE,A4
+	ADD.L	#bpl*h-2,A4
+	ROL.W	#4,D1
+	MOVE.B	SCROLL_SHIFT,D1
+	ROR.W	#4,D1
+	bsr	WaitBlitter
+	MOVE.L	A4,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	A4,BLTDPTH
+	MOVE.W	D1,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
+	MOVE.W	#%0000000000000010,BLTCON1	; BLTCON1 BIT 12 DESC MODE
+	MOVE.W	#0,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
+	MOVE.W	#0,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
+
+	MOVE.W	#(h<<6)+%00010101,BLTSIZE	; BLTSIZE (via al blitter !)
+
+	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
+	RTS
+
+__SCROLL_BG_RIGHT:
+	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
+	BTST.B	#6,DMACONR	; for compatibility
+
+	MOVE.W	#%0000100111110000,D1
+
+	MOVE.L	SCROLL_PLANE,A4
+	ROL.W	#4,D1
+	MOVE.B	SCROLL_SHIFT,D1
+	ROR.W	#4,D1
+	bsr	WaitBlitter
+	MOVE.L	A4,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	A4,BLTDPTH
+	MOVE.W	#$FFFF,BLTAFWM	; BLTAFWM lo spiegheremo dopo
+	MOVE.W	#$FFFF,BLTALWM	; BLTALWM lo spiegheremo dopo
+	MOVE.W	D1,BLTCON0	; BLTCON0 (usa A+D); con shift di un pixel
+	MOVE.W	#%0000000000000000,BLTCON1	; BLTCON1 BIT 12 DESC MODE
+	MOVE.W	#0,BLTAMOD	; BLTAMOD =0 perche` il rettangolo
+	MOVE.W	#0,BLTDMOD	; BLTDMOD 40-4=36 il rettangolo
+
+	MOVE.W	#(h<<6)+%00010101,BLTSIZE	; BLTSIZE (via al blitter !)
+
+	MOVE.L	SCROLL_PLANE,A4	; PATCH FIRST WORD COLUMN
+	bsr	WaitBlitter
+	MOVEQ	#bpl-2,D0
+	MOVE.L	A4,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
+	MOVE.L	A4,BLTDPTH
+	ADD.L	D0,A4
+	MOVE.L	A4,BLTBPTH
+	MOVE.W	#%0000110111100100,BLTCON0	; d = ac+b!c = abc+a!bc+ab!c+!ab!c = %11100100 = $e4
+	MOVE.W	#%0000000000000000,BLTCON1	; BLTCON1 BIT 12 DESC MODE
+	MOVE.B	SCROLL_SHIFT,D1
+	MOVE.W	#$FFFF,D2
+	LSR.W	D1,D2
+
+	MOVE.W	D2,BLTCDAT
+	MOVE.W	D0,BLTAMOD
+	MOVE.W	D0,BLTBMOD
+	MOVE.W	D0,BLTDMOD
+
+	MOVE.W	#(h<<6)+%000001,BLTSIZE	; BLTSIZE (via al blitter !)
+
+	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
+	RTS
 
 ;********** Fastmem Data **********
 DrawBuffer:	DC.L SCREEN2	; pointers to buffers to be swapped
 ViewBuffer:	DC.L SCREEN1	;
-ScrollBuffer:	DC.L SCREEN3	;
+
 KONEYBG:		DC.L BG1		; INIT BG
+BGPLANE0:		DC.L BG1
+BGPLANE1:		DC.L BG1+bpl*h
+BGPLANE2:		DC.L BG1+bpl*h*2
+BGPLANE3:		DC.L BG1+bpl*h*3
 
-GLITCHER_SRC:	DC.L 0
-GLITCHER_DEST:	DC.L 0
-GLITCHER_DPH:	DC.L 0
+SCROLL_PLANE:	DC.L 0
+SCROLL_SHIFT:	DC.B 0
+		EVEN
 
-PALETTEBUFFERED:
-	DC.W $0180,$0031,$0182,$0000,$0184,$0111,$0186,$0122
+PALETTEBUFFERED:	;INCLUDE "BG_JPG_DITHER_PALETTE.s"
+	DC.W $0180,$0010,$0182,$0000,$0184,$0111,$0186,$0122
 	DC.W $0188,$0333,$018A,$0444,$018C,$0555,$018E,$0556
 	DC.W $0190,$0666,$0192,$0888,$0194,$0999,$0196,$0AAA
 	DC.W $0198,$09AA,$019A,$0FFF,$019C,$0FFF,$019E,$0FFF
@@ -261,9 +263,8 @@ PALETTEBUFFERED:
 	;*******************************************************************************
 
 BG1:	DS.W h*bpls
-BG1_DATA:	INCBIN	"onePlane_10.raw"
-	INCBIN	"ditherkoneybg320256.raw"
-	;INCBIN	"BLITTER_MARGIN.raw"
+BG1_DATA:	INCBIN "onePlane_11.raw"
+	INCBIN "dithermirrorbg.raw"
 
 Copper:
 	DC.W $1FC,0	;Slow fetch mode, remove if AGA demo.
@@ -275,7 +276,7 @@ Copper:
 	DC.W $106,$0C00	;(AGA compat. if any Dual Playf. mode)
 	DC.W $108,2	;bwid-bpl	;modulos
 	DC.W $10A,2	;bwid-bpl	;RISULTATO = 80 ?
-
+	
 	DC.W $102,0	;SCROLL REGISTER (AND PLAYFIELD PRI)
 
 Palette:	;Some kind of palette (3 bpls=8 colors)
@@ -329,6 +330,5 @@ _Copper:
 
 SCREEN1:		DS.B h*bwid	; Define storage for buffer 1
 SCREEN2:		DS.B h*bwid	; two buffers
-SCREEN3:		DS.B h*bwid	; two buffers
 
 END
