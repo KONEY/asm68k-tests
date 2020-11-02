@@ -24,7 +24,7 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	;** SOMETHING INSIDE HERE IS NEEDED TO MAKE MOD PLAY! **
 	;move.w	#%1110000000000000,INTENA	; Master and lev6	; NO COPPER-IRQ!
 
-	move.w	#$87c0,DMACON
+	move.w	#%1000011111100000,DMACON
 	;*--- clear screens ---*
 	lea	Screen1,a1
 	bsr.w	ClearScreen
@@ -42,6 +42,37 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	BSR.W	__InitCopperPalette
 	BSR.W	__ADD_BLITTER_WORD
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
+
+	; #### Puntiamo lo sprite
+	LEA	SpritePointers,A1	; Puntatori in copperlist
+	MOVE.L	#SPRT_K,D0	; indirizzo dello sprite in d0
+	MOVE.W	D0,6(A1)
+	SWAP	D0
+	MOVE.W	D0,2(A1)
+
+	ADDQ.W	#8,A1
+	MOVE.L	#SPRT_O,D0	; indirizzo dello sprite in d0
+	MOVE.W	D0,6(A1)
+	SWAP	D0
+	MOVE.W	D0,2(A1)
+
+	ADDQ.W	#8,A1
+	MOVE.L	#SPRT_N,D0	; indirizzo dello sprite in d0
+	MOVE.W	D0,6(A1)
+	SWAP	D0
+	MOVE.W	D0,2(A1)
+
+	ADDQ.W	#8,A1
+	MOVE.L	#SPRT_Y,D0	; indirizzo dello sprite in d0
+	MOVE.W	D0,6(A1)
+	SWAP	D0
+	MOVE.W	D0,2(A1)
+
+	ADDQ.W	#8,A1
+	MOVE.L	#SPRT_E,D0	; indirizzo dello sprite in d0
+	MOVE.W	D0,6(A1)
+	SWAP	D0
+	MOVE.W	D0,2(A1)
 
 	MOVE.L	#Copper,$80(a6)
 
@@ -67,17 +98,17 @@ MainLoop:
 
 	; do stuff here :)
 
-	MOVE.L	BGPLANE0,SCROLL_PLANE
-	MOVE.B	#2,SCROLL_SHIFT
-	BSR.W	__SCROLL_BG_LEFT	; SHIFT LEFT
+	;MOVE.L	BGPLANE0,SCROLL_PLANE
+	;MOVE.B	#1,SCROLL_SHIFT
+	;BSR.W	__SCROLL_BG_LEFT	; SHIFT LEFT
 	MOVE.L	BGPLANE1,SCROLL_PLANE
-	MOVE.B	#3,SCROLL_SHIFT
+	MOVE.B	#1,SCROLL_SHIFT
 	BSR.W	__SCROLL_BG_LEFT	; SHIFT LEFT
 	MOVE.L	BGPLANE2,SCROLL_PLANE
-	MOVE.B	#5,SCROLL_SHIFT
+	MOVE.B	#2,SCROLL_SHIFT
 	BSR.W	__SCROLL_BG_LEFT	; SHIFT LEFT
 	MOVE.L	BGPLANE3,SCROLL_PLANE
-	MOVE.B	#7,SCROLL_SHIFT
+	MOVE.B	#3,SCROLL_SHIFT
 	BSR.W	__SCROLL_BG_LEFT	; SHIFT LEFT
 
 	;*--- main loop end ---*
@@ -262,9 +293,11 @@ PALETTEBUFFERED:	;INCLUDE "BG_JPG_DITHER_PALETTE.s"
 	SECTION	ChipData,DATA_C	;declared data that must be in chipmem
 	;*******************************************************************************
 
-BG1:	DS.W h*bpls	; DEFINE AN EMPTY AREA FOR THE MARGIN WORD
-BG1_DATA:	INCBIN "BG_JPG_DITHER_2.raw"
+BG1:	DS.W h*bpls		; DEFINE AN EMPTY AREA FOR THE MARGIN WORD
+BG1_DATA:	INCBIN "BG_JPG_DITHER_3.raw"
 	;INCBIN "onePlane_10.raw"
+
+SPRITES:	INCLUDE "sprite_KONEY.s"
 
 Copper:
 	DC.W $1FC,0	;Slow fetch mode, remove if AGA demo.
@@ -299,6 +332,22 @@ BplPtrs:
 	DC.W $F4,0
 	DC.W $F6,0		;full 6 ptrs, in case you increase bpls
 	DC.W $100,BPLS*$1000+$200	;enable bitplanes
+
+SpritePointers:
+	DC.W $120,0,$122,0	; 0
+	DC.W $124,0,$126,0	; 1
+	DC.W $128,0,$12A,0	; 2
+	DC.W $12C,0,$12E,0	; 3
+	DC.W $130,0,$132,0	; 4
+	DC.W $134,0,$136,0	; 5
+	DC.W $138,0,$13A,0	; 6
+	DC.W $13C,0,$13E,0	; 7
+
+	DC.W $1A2,$999	; color17, ossia COLOR1 dello sprite0 - ROSSO
+	DC.W $1A4,$AAA	; color18, ossia COLOR2 dello sprite0 - VERDE
+	DC.W $1A6,$FFF	; color19, ossia COLOR3 dello sprite0 - GIALLO
+	DC.W $1A8,$FFF	; color19, ossia COLOR3 dello sprite0 - GIALLO
+	DC.W $1B0,$FFF	; color19, ossia COLOR3 dello sprite0 - GIALLO
 
 COPPERWAITS:
 	; HW DISPLACEMENT
