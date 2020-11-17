@@ -3,8 +3,8 @@
 	SECTION	"Code",CODE
 	INCLUDE	"PhotonsMiniWrapper1.04!.S"
 	INCLUDE	"Blitter-Register-List.S"	;use if you like ;)
-	;INCLUDE	"PT12_OPTIONS.i"
-	;INCLUDE	"P6112-Play-stripped.i"
+	INCLUDE	"PT12_OPTIONS.i"
+	INCLUDE	"P6112-Play-stripped.i"
 ;********** Constants **********
 w=	336		;screen width, height, depth
 h=	256
@@ -24,7 +24,7 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	;** SOMETHING INSIDE HERE IS NEEDED TO MAKE MOD PLAY! **
 	;move.w	#%1110000000000000,INTENA	; Master and lev6	; NO COPPER-IRQ!
 
-	move.w	#%1000011111100000,DMACON
+	move.w	#%1000001111100000,DMACON	; BIT10=BLIT NASTY
 	;*--- clear screens ---*
 	lea	Screen1,a1
 	bsr.w	ClearScreen
@@ -43,7 +43,7 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	BSR.W	__ADD_BLITTER_WORD
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
 
-	; #### Puntiamo lo sprite
+	; #### Point LOGO sprites
 	LEA	SpritePointers,A1	; Puntatori in copperlist
 	MOVE.L	#SPRT_K,D0	; indirizzo dello sprite in d0
 	MOVE.W	D0,6(A1)
@@ -74,6 +74,16 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	SWAP	D0
 	MOVE.W	D0,2(A1)
 
+	;---  Call P61_Init  ---
+	MOVEM.L	D0-A6,-(SP)
+	lea	Module1,a0
+	sub.l	a1,a1
+	sub.l	a2,a2
+	moveq	#0,d0
+	MOVE.W	#2,P61_InitPos	; TRACK START OFFSET
+	jsr	P61_Init
+	MOVEM.L (SP)+,D0-A6
+
 	MOVE.L	#Copper,$80(a6)
 
 ;********************  main loop  ********************
@@ -94,21 +104,22 @@ MainLoop:
 	move.l	a2,a1
 	;bsr	ClearScreen
 
+	BSR.W	__SET_PT_VISUALS
 	MOVE.L	KONEYBG,DrawBuffer
 
 	; do stuff here :)
 
 	;MOVE.L	BGPLANE0,SCROLL_PLANE
-	;MOVE.B	#1,SCROLL_SHIFT
+	;MOVE.B	#2,SCROLL_SHIFT
 	;BSR.W	__SCROLL_BG_LEFT	; SHIFT LEFT
 	MOVE.L	BGPLANE1,SCROLL_PLANE
-	MOVE.B	#1,SCROLL_SHIFT
+	MOVE.B	AUDIOCHANLEVEL1,SCROLL_SHIFT
 	BSR.W	__SCROLL_BG_LEFT	; SHIFT LEFT
 	MOVE.L	BGPLANE2,SCROLL_PLANE
-	MOVE.B	#2,SCROLL_SHIFT
-	BSR.W	__SCROLL_BG_LEFT	; SHIFT LEFT
+	MOVE.B	AUDIOCHANLEVEL3,SCROLL_SHIFT
+	BSR.W	__SCROLL_BG_RIGHT	; SHIFT LEFT
 	MOVE.L	BGPLANE3,SCROLL_PLANE
-	MOVE.B	#3,SCROLL_SHIFT
+	MOVE.B	AUDIOCHANLEVEL0,SCROLL_SHIFT
 	BSR.W	__SCROLL_BG_LEFT	; SHIFT LEFT
 
 	;*--- main loop end ---*
@@ -117,11 +128,16 @@ MainLoop:
 	BTST	#6,$BFE001
 	BNE.S	.DontShowRasterTime
 	MOVE.W	#$FF0,$180(A6)	; show rastertime left down to $12c
-
+	;SUB.L	#bpl,BGPLANE3	; SCROLL 1PX UP
+	;ADD.L	#bpl,BGPLANE0	; SCROLL 1PX UP
 	.DontShowRasterTime:
 	BTST	#2,$DFF016	; POTINP - RMB pressed?
 	BNE.W	MainLoop		; then loop
 	;*--- exit ---*
+	;;    ---  Call P61_End  ---
+	MOVEM.L D0-A6,-(SP)
+	JSR P61_End
+	MOVEM.L (SP)+,D0-A6
 	RTS
 
 ;********** Demo Routines **********
@@ -177,7 +193,6 @@ __ADD_BLITTER_WORD:
 	.OUTERLOOP:
 	MOVE.L	#(w-16)/16-1,D0	; SIZE OF SOURCE IN WORDS
 	.INNERLOOP:
-	;CLR.W	$100		; DEBUG | w 0 100 2
 	MOVE.W	(A0)+,(A1)+
 	DBRA	D0,.INNERLOOP
 	MOVE.W	#0,(A1)+		; THE EXTRA WORD
@@ -210,6 +225,7 @@ __SCROLL_BG_LEFT:
 	ADD.L	#bpl*h-2,A4
 	ROL.W	#4,D1
 	MOVE.B	SCROLL_SHIFT,D1
+	AND.B	#15,D1		; BETTER LIMIT...
 	ROR.W	#4,D1
 	bsr	WaitBlitter
 	MOVE.L	A4,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
@@ -224,7 +240,7 @@ __SCROLL_BG_LEFT:
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
-__SCROLL_BG_RIGHT:
+__SCROLL_BG_RIGHT:	
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
 	BTST.B	#6,DMACONR	; for compatibility
 
@@ -233,6 +249,7 @@ __SCROLL_BG_RIGHT:
 	MOVE.L	SCROLL_PLANE,A4
 	ROL.W	#4,D1
 	MOVE.B	SCROLL_SHIFT,D1
+	AND.B	#15,D1		; BETTER LIMIT...
 	ROR.W	#4,D1
 	bsr	WaitBlitter
 	MOVE.L	A4,BLTAPTH	; BLTAPT  (fisso alla figura sorgente)
@@ -256,6 +273,7 @@ __SCROLL_BG_RIGHT:
 	MOVE.W	#%0000110111100100,BLTCON0	; d = ac+b!c = abc+a!bc+ab!c+!ab!c = %11100100 = $e4
 	MOVE.W	#%0000000000000000,BLTCON1	; BLTCON1 BIT 12 DESC MODE
 	MOVE.B	SCROLL_SHIFT,D1
+	AND.B	#15,D1		; BETTER LIMIT...
 	MOVE.W	#$FFFF,D2
 	LSR.W	D1,D2
 
@@ -269,10 +287,99 @@ __SCROLL_BG_RIGHT:
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
+__SET_PT_VISUALS:
+	; MOD VISUALIZERS *****
+	ifne visuctrs
+	MOVEM.L D0-A6,-(SP)
+
+	; GLITCH
+	LEA	P61_visuctr0(PC),A0; which channel? 0-3
+	;CLR.W	$100		; DEBUG | w 0 100 2
+	MOVEQ	#15,D0		; maxvalue
+	SUB.W	(A0),D0		; -#frames/irqs since instrument trigger
+	BPL.S	.ok0		; below minvalue?
+	MOVEQ	#0,D0		; then set to minvalue
+	.ok0:
+	MOVE.B	D0,AUDIOCHANLEVEL0	; RESET
+	_ok0:
+
+	LEA	Palette,A1
+	; KICK
+	lea	P61_visuctr1(PC),a0; which channel? 0-3
+	moveq	#15,d0		; maxvalue
+	sub.w	(a0),d0		; -#frames/irqs since instrument trigger
+	bpl.s	.ok1		; below minvalue?
+	moveq	#0,d0		; then set to minvalue
+	.ok1:
+	MOVE.B	D0,AUDIOCHANLEVEL1	; RESET
+	DIVU.W	#$2,D0		; start from a darker shade
+	ADD.W	#$2,D0		; start from a darker shade
+	MOVE.L	D0,D3
+	ROL.L	#$4,D3		; expand bits to green
+	;ADD.L	#1,D3		; makes color a bit geener
+	ADD.L	D3,D0
+	ROL.L	#$4,D3
+	ADD.L	D3,D0		; expand bits to red
+	;MOVE.W	D0,14(A1)		; poke WHITE color now
+	_ok1:
+
+	; BASS
+	lea	P61_visuctr2(PC),a0; which channel? 0-3
+	moveq	#15,d0		; maxvalue
+	sub.w	(a0),d0		; -#frames/irqs since instrument trigger
+	bpl.s	.ok2		; below minvalue?
+	moveq	#0,d0		; then set to minvalue
+	.ok2:
+	MOVE.W	D0,AUDIOCHANLEVEL2	; RESET
+	MOVE.L	D0,D5
+	DIVU.W	#$3,D0		; start from a darker shade
+	MOVE.L	D0,D3
+
+	ANDI.W	#1,D5
+	BEQ.S	.even
+	.odd:
+	ROL.L	#$4,D3		; expand bits to green
+	ADD.L	#1,D3		; makes color a bit geener
+	ADD.L	D3,D0
+	ROL.L	#$4,D3
+	;ADD.L	#0,D3		; makes color a bit geener
+	ADD.L	D3,D0		; expand bits to red
+	BRA.S	.done
+	.even:
+	ROL.L	#$4,D3		; expand bits to green
+	ADD.L	#2,D3		; makes color a bit geener
+	ADD.L	D3,D0
+	ROL.L	#$4,D3
+	ADD.L	#1,D3		; makes color a bit geener
+	ADD.L	D3,D0		; expand bits to red
+	.done:
+	;MOVE.W	D0,6(A1)		; poke WHITE color now
+	_ok2:
+
+	; CYBORG
+	LEA	P61_visuctr3(PC),A0; which channel? 0-3
+	MOVEQ	#15,D0		; maxvalue
+	SUB.W	(A0),D0		; -#frames/irqs since instrument trigger
+	BPL.S	.ok3		; below minvalue?
+	MOVEQ	#0,D0		; then set to minvalue
+	.ok3:
+	MOVE.B	D0,AUDIOCHANLEVEL3	; RESET
+	_ok3:
+
+	MOVEM.L (SP)+,D0-A6
+	RTS
+	endc
+	; MOD VISUALIZERS *****
+
+
 ;********** Fastmem Data **********
 DrawBuffer:	DC.L SCREEN2	; pointers to buffers to be swapped
 ViewBuffer:	DC.L SCREEN1	;
 
+AUDIOCHANLEVEL0:	DC.W 0
+AUDIOCHANLEVEL1:	DC.W 0
+AUDIOCHANLEVEL2:	DC.W 0
+AUDIOCHANLEVEL3:	DC.W 0
 KONEYBG:		DC.L BG1		; INIT BG
 BGPLANE0:		DC.L BG1
 BGPLANE1:		DC.L BG1+bpl*h
@@ -294,8 +401,8 @@ PALETTEBUFFERED:	;INCLUDE "BG_JPG_DITHER_PALETTE.s"
 	;*******************************************************************************
 
 BG1:	DS.W h*bpls		; DEFINE AN EMPTY AREA FOR THE MARGIN WORD
-BG1_DATA:	INCBIN "BG_JPG_DITHER_3.raw"
-	;INCBIN "onePlane_10.raw"
+BG1_DATA:	;INCBIN "onePlane_10.raw"
+	INCBIN "BG_KONEY_DEMO_AMIGA_3.raw"
 
 SPRITES:	INCLUDE "sprite_KONEY.s"
 
@@ -343,11 +450,10 @@ SpritePointers:
 	DC.W $138,0,$13A,0	; 6
 	DC.W $13C,0,$13E,0	; 7
 
-	DC.W $1A2,$999	; color17, ossia COLOR1 dello sprite0 - ROSSO
-	DC.W $1A4,$AAA	; color18, ossia COLOR2 dello sprite0 - VERDE
-	DC.W $1A6,$FFF	; color19, ossia COLOR3 dello sprite0 - GIALLO
-	DC.W $1A8,$FFF	; color19, ossia COLOR3 dello sprite0 - GIALLO
-	DC.W $1B0,$FFF	; color19, ossia COLOR3 dello sprite0 - GIALLO
+	DC.W	$1A6,$000	; COLOR19
+	DC.W	$1AE,$000	; COLOR23
+	DC.W	$1B6,$000	; COLOR2
+
 
 COPPERWAITS:
 	; HW DISPLACEMENT
@@ -372,6 +478,8 @@ COPPERWAITS:
 
 	DC.W $FFFF,$FFFE	;magic value to end copperlist
 _Copper:
+
+Module1:	INCBIN	"CrippledCyborg.P61"	; code $9305
 
 ;*******************************************************************************
 	SECTION ChipBuffers,BSS_C	;BSS doesn't count toward exe size
