@@ -633,7 +633,7 @@ COPPERWAITS:
 	DC.W $FFFF,$FFFE	;magic value to end copperlist
 _Copper:
 
-Module1:	INCBIN	"FatalDefrag_v3.P61"	; code $9104
+Module1:	INCBIN	"FatalDefrag_v4.P61"	; code $9104
 
 ;*******************************************************************************
 	SECTION ChipBuffers,BSS_C	;BSS doesn't count toward exe size

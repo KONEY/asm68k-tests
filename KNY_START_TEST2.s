@@ -145,7 +145,7 @@ PRINT_K:				;Routine che stampa
 ;*******************************************************************************
 
 TESTBG:
-	incbin	"testpic320256.raw"		; qua carichiamo la figura in RAW,
+	incbin	"PlasmaBG320356_4.raw"		; qua carichiamo la figura in RAW,
 
 KONEYBG:
 	incbin	"ditherkoneybg320256.raw"	; qua carichiamo la figura in RAW,

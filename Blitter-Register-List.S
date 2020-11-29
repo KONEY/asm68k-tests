@@ -46,3 +46,4 @@ DMACON	= $dff096
 
 ;Interrupt enable bits (clear or set bits)
 INTENA	= $dff09A
+INTREQ	= $DFF09C

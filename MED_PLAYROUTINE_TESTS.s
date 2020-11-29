@@ -1,11 +1,9 @@
-;*** WITH GLITCH FROM RAM ZONES
+;*** ATTEMPTS TO PLAY MED MUSIC
 ;*** MiniStartup by Photon ***
 	INCDIR	"NAS:AMIGA/CODE/KONEY/"
-	SECTION	"Code+PT12",CODE
+	SECTION	"Code",CODE
+	INCLUDE	"Blitter-Register-List.S"
 	INCLUDE	"PhotonsMiniWrapper1.04!.S"
-	INCLUDE	"Blitter-Register-List.S"	;use if you like ;)
-	INCLUDE	"PT12_OPTIONS.i"
-	INCLUDE	"P6112-Play-stripped.i"
 ;********** Constants **********
 w=320		;screen width, height, depth
 h=256
@@ -25,11 +23,7 @@ bltx	=0
 ;blty	=0
 bltoffs	=210*(w/8)+bltx/8
 
-;blth	=12
-;bltw	=320/16
-;bltskip	=(320-320)/8
-
-;********** Demo **********	;Demo-specific non-startup code below.
+;********** Demo **********	; Demo-specific non-startup code below.
 Demo:	;a4=VBR, a6=Custom Registers Base addr
 	;*--- init ---*
 	move.l	#VBint,$6c(a4)
@@ -37,7 +31,7 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	;** SOMETHING INSIDE HERE IS NEEDED TO MAKE MOD PLAY! **
 	;move.w	#%1110000000000000,INTENA	; Master and lev6	; NO COPPER-IRQ!
 
-	move.w	#$87c0,DMACON
+	move.w	#%1000011111000000,DMACON
 	;*--- clear screens ---*
 	lea	Screen1,a1
 	bsr.w	ClearScreen
@@ -52,26 +46,26 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	bsr.w	PokePtrs
 
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
-	;PARAMS&ROUTINE
-	;MOVE.L	#Module1,GLITCHER_SRC
-	MOVE.L	#GLITCHBUFFER,GLITCHER_DEST
-	MOVE.L	#bpls-1,GLITCHER_DPH
-	BSR.W	__FILLRNDBG
-
 	BSR.W	__CREAPATCH		; FILL THE BUFFER
-	;BSR.W	__CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
-
 	BSR.W	__InitCopperPalette
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
 
-	;---  Call P61_Init  ---
-	MOVEM.L D0-A6,-(SP)
-	lea Module1,a0
-	sub.l a1,a1
-	sub.l a2,a2
-	moveq #0,d0
-	jsr P61_Init
-	MOVEM.L (SP)+,D0-A6
+	; ---  Call MED code  ---
+
+	;XREF	_PlayModule
+	;XREF	_InitPlayer
+	;XREF	_RemPlayer
+	;XREF	_InitModule
+
+	;SECTION	"text",CODE
+
+	movem.l	d0-d7/a0-a6,-(sp)
+	jsr	_InitPlayer
+	lea	MEDMODULE,a0
+	jsr	_InitModule
+	lea	MEDMODULE,a0
+	jsr	_PlayModule
+	movem.l	(sp)+,d0-d7/a0-a6
 
 	MOVE.L	#Copper,$80(a6)
 
@@ -93,8 +87,6 @@ MainLoop:
 	move.l	a2,a1
 	;bsr	ClearScreen
 
-	BSR.W	__SET_PT_VISUALS
-
 	bsr	WaitBlitter
 	MOVE.L	KONEYBG,DrawBuffer
 
@@ -114,13 +106,6 @@ MainLoop:
 	BSR.W	__DITHERBGPLANE	; THIS NEEDS OPTIMIZING
 	_noglitch2:
 
-	;MOVE.W	AUDIOCHANLEVEL1,D2
-	;CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
-	;BEQ.S	_noflash
-	;BSR.W	__InitCopperPalette
-	;BSR.W	__CYCLEPALETTE
-	;_noflash:
-
 	BSR.W	__PRINT2X
 	BSR.W	__CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
 	BSR.W	__BLITINPLACE		; FIRST BLITTATA
@@ -136,73 +121,13 @@ MainLoop:
 	BNE.W	MainLoop		; then loop
 	;*--- exit ---*
 	;;    ---  Call P61_End  ---
-	MOVEM.L D0-A6,-(SP)
-	JSR P61_End
-	MOVEM.L (SP)+,D0-A6
+	MOVEM.L	D0-A6,-(SP)
+	JSR	_RemPlayer
+	MOVEM.L	(SP)+,D0-A6
 	RTS
 ;********** Demo Routines **********
 
-__SET_PT_VISUALS:
-	; MOD VISUALIZERS *****
-	ifne visuctrs
-	MOVEM.L D0-A6,-(SP)
-
-	; GROOVE 2
-	lea	P61_visuctr0(PC),a0;which channel? 0-3
-	moveq	#14,d0		;maxvalue
-	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
-	bpl.s	.ok0		;below minvalue?
-	moveq	#0,d0		;then set to minvalue
-	.ok0:	
-	MOVE.W	D0,AUDIOCHANLEVEL0	; RESET
-	_ok0:
-
-	; KICKDRUM
-	lea	P61_visuctr1(PC),a0;which channel? 0-3
-	moveq	#14,d0		;maxvalue
-	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
-	bpl.s	.ok1		;below minvalue?
-	moveq	#0,d0		;then set to minvalue
-	MOVE.W	#$A,BPLCOLORINDEX	; FOR TIMING
-	.ok1:	
-	MOVE.W	D0,AUDIOCHANLEVEL1	; RESET
-	_ok1:
-
-	; BASS
-	lea	P61_visuctr2(PC),a0;which channel? 0-3
-	LEA	Palette,A1
-	moveq	#15,d0		;maxvalue
-	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
-	bpl.s	.ok2		;below minvalue?
-	moveq	#0,d0		;then set to minvalue
-	.ok2:	
-	MOVE.W	D0,AUDIOCHANLEVEL2	; RESET
-	DIVU.W	#$4,D0		; start from a darker shade
-	MOVE.L	D0,D3
-	ROL.L	#$4,D3		; expand bits to green
-	ADD.L	#1,D3		; makes color a bit geener
-	ADD.L	D3,D0
-	ROL.L	#$4,D3
-	ADD.L	D3,D0		; expand bits to red
-	MOVE.W	D0,6(A1)		; poke WHITE color now
-	_ok2:
-
-	; GROOVE 1
-	lea	P61_visuctr3(PC),a0;which channel? 0-3
-	moveq	#14,d0		;maxvalue
-	sub.w	(a0),d0		;-#frames/irqs since instrument trigger
-	bpl.s	.ok3		;below minvalue?
-	moveq	#0,d0		;then set to minvalue
-	.ok3:	
-	MOVE.W	D0,AUDIOCHANLEVEL3	; RESET
-	_ok3:
-
-	MOVEM.L (SP)+,D0-A6
-	RTS
-	endc
-	; MOD VISUALIZERS *****
-
-PokePtrs:				;Generic, poke ptrs into copper list
+PokePtrs:				; Generic, poke ptrs into copper list
 	.bpll:	
 	move.l	a0,d2
 	swap	d2
@@ -613,38 +538,32 @@ BLITPLANEOFFSET:	DC.W 0
 PATCH:		DS.B 10*64*bpls	;I need a buffer to save trap BG
 
 TEXTINDEX:	DC.W 0
-POS6_REACHED:	DC.B 0
-POS16_REACHED:	DC.B 0
 
-	;*******************************************************************************
-	SECTION	ChipData,DATA_C	;declared data that must be in chipmem
-	;*******************************************************************************
+	INCLUDE	"med/proplayer.a"
 
-KONEY2X:	INCBIN	"koney10x64.raw"
+;*******************************************************************************
+	SECTION "ChipData",DATA_C	;declared data that must be in chipmem
+;*******************************************************************************
 
-TXTSCROLLBUF:	DS.B (bpl)*8
+KONEY2X:		INCBIN	"koney10x64.raw"
+
+TXTSCROLLBUF:	DS.B	(bpl)*8
 _TXTSCROLLBUF:
 
-FRAMESINDEX:	DC.W 4
+FRAMESINDEX:	DC.W	4
 
-BG1:	INCBIN	"BG_KONEY_320256_4.raw"
-;BG1:	INCBIN	"glitchditherbg9_320256_3.raw"
-	;INCBIN	"dithermirrorbg_3.raw"
-	;INCBIN	"glitchditherbg1_320256_3.raw"
-;BG3:	INCBIN	"glitchditherbg1_320256_3.raw"
+BG1:		INCBIN	"BG_KONEY_320256_4.raw"
 
-FONT:	DC.L	0,0	; SPACE CHAR
-	INCBIN	"scummfnt_8x752.raw",0
+MEDMODULE:	INCBIN	"octamed_test.med"		;<<<<< MODULE NAME HERE!
+
+FONT:		DC.L	0,0			; SPACE CHAR
+		INCBIN	"scummfnt_8x752.raw",0
 TEXT:
 	DC.B "  !!!! EPILEPSY DANGER ALERT !!!!  "
-	DC.B "LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT, SED DO EIUSMOD TEMPOR INCIDIDUNT UT LABORE ET DOLORE MAGNA ALIQUA. UT ENIM AD MINIM VENIAM. "
-	DC.B "AT VERO EOS ET ACCUSAMUS ET IUSTO ODIO DIGNISSIMOS DUCIMUS QUI BLANDITIIS PRAESENTIUM VOLUPTATUM DELENITI ATQUE "
-	DC.B "ORRUPTI QUOS DOLORES ET QUAS MOLESTIAS EXCEPTURI SINT OCCAECATI CUPIDITATE NON PROVIDENT, SIMILIQUE SUNT IN CULPA QUI OFFICIA DESERUNT MOLLITIA ANIMI, ID EST LABORUM ET DOLORUM FUGA. "
-	DC.B "ET HARUM QUIDEM RERUM FACILIS EST ET EXPEDITA DISTINCTIO. NAM LIBERO TEMPORE, CUM SOLUTA NOBIS EST ELIGENDI OPTIO CUMQUE NIHIL IMPEDIT QUO MINUS ID QUOD "
-	DC.B "MAXIME PLACEAT FACERE POSSIMUS, OMNIS VOLUPTAS ASSUMENDA EST, OMNIS DOLOR REPELLENDUS. "
-	DC.B "TEMPORIBUS AUTEM QUIBUSDAM ET AUT OFFICIIS DEBITIS AUT RERUM NECESSITATIBUS SAEPE EVENIET UT ET VOLUPTATES. "
-	DC.B "HOT LINKZ: WWW.KONEY.ORG - WWW.RETROACADEMY.IT - WWW.DISCOGS.COM             .EOF  "
-	DC.B "                                                                              "
+	DC.B "LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT, SED DO EIUSMOD "
+	DC.B "AT VERO EOS ET ACCUSAMUS ET IUSTO ODIO DIGNISSIMOS DUCIMUS QUI BLANDITIIS  "
+	DC.B "LOREM IPSUM DOLOR SIT AMET, PRAESENTIUM VOLUPTATUM DELENITI ATQUE EIUSMOD "
+	DC.B "                                                                  "
 	EVEN
 _TEXT:
 
@@ -661,7 +580,7 @@ Copper:
 
 	DC.W $102,0	;SCROLL REGISTER (AND PLAYFIELD PRI)
 
-Palette:			;Some kind of palette (3 bpls=8 colors)
+Palette:						;Some kind of palette (3 bpls=8 colors)
 	DC.W $0180,0,$0182,0,$0184,0,$0186,0
 	DC.W $0188,0,$018A,0,$018C,0,$018E,0
 	DC.W $0190,0,$0192,0,$0194,0,$0196,0
@@ -700,10 +619,8 @@ COPPERWAITS:
 	DC.W $FFFF,$FFFE	;magic value to end copperlist
 _Copper:
 
-Module1:	INCBIN	"FatalDefrag_v4.P61"	; code $9104
-;GLITCHBUFFER:	INCBIN	"glitchditherbg1_320256_3.raw"
 ;*******************************************************************************
-	SECTION ChipBuffers,BSS_C	;BSS doesn't count toward exe size
+	SECTION "ChipBuffers",BSS_C	;BSS doesn't count toward exe size
 ;*******************************************************************************
 
 SCREEN1:		DS.B h*bwid	; Define storage for buffer 1
