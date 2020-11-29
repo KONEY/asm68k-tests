@@ -131,11 +131,11 @@ TTMPVOLOFFS	EQU	102
 ; you can decrease the number to save some space. (Be sure that the
 ; song really has no more than MAX_NUMTRACKS tracks. Minimum allowed
 ; value = 4.)
-MAX_NUMTRACKS	EQU	64
+MAX_NUMTRACKS	EQU	4
 
 ; This value is used for MMD0/1 conversion. If MAX_NUMTRACKS <= 16,
 ; this should be the same. If MAX_NUMTRACKS > 16, this should be 16.
-MAX_MMD1_TRACKS	EQU	16
+MAX_MMD1_TRACKS	EQU	4
 
 ; Aura output handling routines
 	IFNE	AURA
@@ -1626,7 +1626,7 @@ dofx_stopl3	rts
 ;		d1 = page number
 ;		d2 = line number
 ;		a2 = module
-; result:	a0 = command pointer (i.e. trk 0 note + 2)
+; result:		a0 = command pointer (i.e. trk 0 note + 2)
 ;		d6 = track advance (bytes)
 ; scratches:	d0, d1, d2, a0
 ; Note: no num_pages check! If numpages > 0 it can be assumed that
@@ -1669,8 +1669,8 @@ GetCmdPtrMMD0	moveq	#0,d0
 ; GetBlockAddr: Return pointer to block
 ; *******************************************************************
 ; args:		d0 = block number
-; result:	a0 = block pointer
-; scratches: d0, a0
+; result:		a0 = block pointer
+; scratches:	d0, a0
 
 GetBlockAddr	movea.l	mmd_blockarr(a2),a0
 		add.w	d0,d0
@@ -1682,7 +1682,7 @@ GetBlockAddr	movea.l	mmd_blockarr(a2),a0
 ; GetNoteDataAddr: Check & return addr. of current note
 ; *******************************************************************
 ;args:		d0 = pblock	a6 = DB
-;returns:	a3 = address
+;returns:		a3 = address
 ;scratches:	d0, a0, d1
 
 GetNoteDataAddr	bsr.w	GetBlockAddr
@@ -1817,7 +1817,7 @@ plr_haf_midi
 ;		a5 = track data ptr	
 ;		a6 = DB		d0 = command (long, byte used)
 ;		d7 = track (channel) number
-;scratches: d0, d1, d4, a0
+;scratches:	d0, d1, d4, a0
 
 ChannelFX		add.b	d0,d0	;* 2
 		move.w	fx_table(pc,d0.w),d0
