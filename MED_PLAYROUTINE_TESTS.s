@@ -51,17 +51,16 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
 
 	; ---  Call MED code  ---
-	XREF	_PlayModule
-	XREF	_InitPlayer
-	XREF	_RemPlayer
-	XREF	_InitModule
+	;XREF	_PlayModule
+	;XREF	_InitPlayer
+	;XREF	_RemPlayer
+	;XREF	_InitModule
 
 	;SECTION	"text",CODE
 
 	movem.l	d0-d7/a0-a6,-(sp)
 	jsr	_InitPlayer
 	lea	MEDMODULE,a0
-	;CLR.W	$100		; DEBUG | w 0 100 2
 	jsr	_PlayModule
 	movem.l	(sp)+,d0-d7/a0-a6
 	; ---  Call MED code  ---
@@ -95,6 +94,8 @@ MainLoop:
 	BSR.W	__BLITINPLACE		; FIRST BLITTATA
 	BSR.W	__SHIFTTEXT		; SHIFT DATI BUFFER?
 	BSR.W	__POPULATETXTBUFFER	; PUT SOMETHING
+
+	;CLR.W	$100		; DEBUG | w 0 100 2
 
 	;*--- main loop end ---*
 	BTST	#6,$BFE001
@@ -520,8 +521,6 @@ KONEY2X:		INCBIN	"koney10x64.raw"
 
 TXTSCROLLBUF:	DS.B	(bpl)*8
 _TXTSCROLLBUF:
-
-
 
 BG1:		INCBIN	"BG_METAL2_320256_4.raw"
 

@@ -24,15 +24,15 @@
 
 ;****** Feature control ******
 ;
-MIDI		EQU 0	;1 = include MIDI code
-AUDDEV		EQU 0	;1 = allocate channels using audio.device
-SYNTH		EQU 1	;1 = include synth-sound handler
-CHECK		EQU 1	;1 = do range checkings (track, sample in mem etc.)
-RELVOL		EQU 1	;1 = include relative volume handling code
-IFFMOCT		EQU 1	;1 = play IFF multi-octave samples/ExtSamples correctly
-HOLD		EQU 1	;1 = handle hold/decay
-PLAYMMD0		EQU 0	;1 = play old MMD0 modules
-AURA		EQU 0	;1 = support the Aura sampler
+MIDI		EQU	0	;1 = include MIDI code
+AUDDEV		EQU	0	;1 = allocate channels using audio.device
+SYNTH		EQU	1	;1 = include synth-sound handler
+CHECK		EQU	1	;1 = do range checkings (track, sample in mem etc.)
+RELVOL		EQU	1	;1 = include relative volume handling code
+IFFMOCT		EQU	1	;1 = play IFF multi-octave samples/ExtSamples correctly
+HOLD		EQU	1	;1 = handle hold/decay
+PLAYMMD0		EQU	0	;1 = play old MMD0 modules
+AURA		EQU	0	;1 = support the Aura sampler
 ;
 ; The less features you include, the faster and shorter the play-routine
 ; will be.
@@ -357,6 +357,7 @@ SO_rts		rts
 ; -------- _PlayNote: The note playing routine ---------------------------
 _PlayNote:	;d7(w) = trk #, d1 = note #, d3(w) = instr # a3 = addr of instr
 ; -------- CHECK INSTRUMENT (existence, type) ----------------------------
+		;CLR.W	$100			; DEBUG | w 0 100 2
 		move.l	a3,d4
 		beq.s	SO_rts
 		moveq	#0,d4
@@ -593,7 +594,7 @@ retsn1		move.w	d5,trk_prevper(a5)
 		tst.b	trk_synthtype(a5)
 		bne.w	hSn2
 	ENDC
-pnote_rts	rts
+pnote_rts		rts
 
 handlenonstdout
 	IFNE	AURA
@@ -1843,24 +1844,24 @@ fx_01nocnt0	move.w	trk_prevper(a5),d0
 		move.w	#113,d0
 fx_01noovf	move.w	d0,trk_prevper(a5)
 fx_xx						;fx_xx is just a RTS
-fx_01rts	rts
+fx_01rts		rts
 ;	**************************************** Effect 11 ******
 fx_11		tst.b	d3
 		bne.s	fx_11rts
 		sub.w	d4,trk_prevper(a5)
-fx_11rts	rts
+fx_11rts		rts
 ;	**************************************** Effect 02 ******
 fx_02		tst.b	d3
 		bne.s	fx_02nocnt0
 		btst	#5,msng_flags(a4)
 		bne.s	fx_02rts
 fx_02nocnt0	add.w	d4,trk_prevper(a5)
-fx_02rts	rts
+fx_02rts		rts
 ;	**************************************** Effect 12 ******
 fx_12		tst.b	d3
 		bne.s	fx_12rts
 		add.w	d4,trk_prevper(a5)
-fx_12rts	rts
+fx_12rts		rts
 ;	**************************************** Effect 00 ******
 fx_00		tst.b	d4			;both fxqualifiers are 0s: no arpeggio
 		beq.s	fx_00rts
@@ -1888,7 +1889,7 @@ fx_doarp:		move.b	(a5),d0
 		add.b	d4,d4
 		sub.w	0(a0,d4.w),d0		;calc difference from base note
 		move.w	d0,trk_arpadjust(a5)
-fx_00rts	rts
+fx_00rts		rts
 ;	**************************************** Effect 04 ******
 fx_14		move.b	#6,trk_vibshift(a5)
 		bra.s	vib_cont
@@ -1918,7 +1919,7 @@ nonvib		move.b	trk_vibroffs(a5),d0
 		move.w	d0,trk_vibradjust(a5)
 		move.b	trk_vibrspd(a5),d0
 		add.b	d0,trk_vibroffs(a5)
-fx_04rts	rts
+fx_04rts		rts
 ;	**************************************** Effect 06 ******
 fx_06:		tst.b	d3
 		bne.s	fx_06nocnt0
@@ -2776,7 +2777,6 @@ init_pal		moveq	#0,d3
 		move.b	#'a',3(a1)
 open_ciares	moveq	#0,d0
 		movea.l	4.w,a6
-		;CLR.W	$100			; DEBUG | w 0 100 2
 		jsr	-$1f2(a6)			;OpenResource()
 		move.l	d0,_ciaresource
 		beq.s	try_CIAB
@@ -3207,14 +3207,14 @@ t463d		ds.b	(MAX_NUMTRACKS-4)*T415SZ
 trackdataptrs	dc.l	t03d,t03d+T03SZ,t03d+2*T03SZ,t03d+3*T03SZ
 ; Build pointer table. This works on Devpac assembler, other assemblers
 ; may need modifications.
-TRKCOUNT	SET	0
+TRKCOUNT		SET	0
 		REPT	(MAX_NUMTRACKS-4)
 		dc.l	t463d+TRKCOUNT
-TRKCOUNT	SET	TRKCOUNT+T415SZ
+TRKCOUNT		SET	TRKCOUNT+T415SZ
 		ENDR
 
 nextblock		dc.b	0 ;\ DON'T SEPARATE
-nxtnoclrln		dc.b	0 :/
+nxtnoclrln		dc.b	0 ;/
 numtracks		dc.w	0 ;\ DON'T SEPARATE
 numlines		dc.w	0 ;/
 numpages		dc.w	0
