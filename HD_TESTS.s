@@ -1,15 +1,20 @@
-;*** TESTS FOR HD !
+;*** HD + MUSIC
 ;*** MiniStartup by Photon ***
 	INCDIR	"NAS:AMIGA/CODE/KONEY/"
 	SECTION	"Code",CODE
 	INCLUDE	"Blitter-Register-List.S"
 	INCLUDE	"PhotonsMiniWrapper1.04!.S"
+	INCLUDE	"PT12_OPTIONS.i"
+	INCLUDE	"P6112-Play-stripped.i"
 ;********** Constants **********
 w=640		;screen width, height, depth
 h=512
 bpls=3		;handy values:
 bpl=w/16*2	;byte-width of 1 bitplane line (80)
 bwid=bpls*bpl	;byte-width of 1 pixel line (all bpls)
+;*************
+MODSTART_POS=0		; start music at position # !! MUST BE EVEN FOR 16BIT
+;*************
 
 ;********** Demo **********	; Demo-specific non-startup code below.
 Demo:	;a4=VBR, a6=Custom Registers Base addr
@@ -33,6 +38,16 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	moveq	#bpls-1,d1
 	bsr.w	PokePtrs
 
+	;---  Call P61_Init  ---
+	MOVEM.L	D0-A6,-(SP)
+	LEA	MODULE,A0
+	SUB.L	A1,A1
+	SUB.L	A2,A2
+	MOVE.W	#MODSTART_POS,P61_InitPos	; TRACK START OFFSET
+	JSR	P61_Init
+	MOVEM.L (SP)+,D0-A6
+	;---  Call P61_Init  ---
+
 	MOVE.L	#Copper,$80(a6)
 
 ;********************  main loop  ********************
@@ -54,7 +69,7 @@ MainLoop:
 	;bsr	ClearScreen
 	bsr	WaitBlitter
 
-	; ** CODE FOR HI-RES **************************************
+	; ** CODE FOR HI-RES ** FROM Lezione11l6.S ********************
 	;MOVE.L	#$1FF00,D1	; bit per la selezione tramite AND
 	;MOVE.L	#$01000,D2	; linea da aspettare = $010
 	;Waity1:
@@ -89,6 +104,10 @@ MainLoop:
 	BTST	#2,$DFF016	; POTINP - RMB pressed?
 	BNE.W	MainLoop		; then loop
 	;*--- exit ---*
+	;    ---  Call P61_End  ---
+	MOVEM.L D0-A6,-(SP)
+	JSR P61_End
+	MOVEM.L (SP)+,D0-A6
 	RTS
 ;********** Demo Routines **********
 
@@ -132,11 +151,13 @@ KONEYBG:		DC.L BG1		; INIT BG
 DrawBuffer:	DC.L SCREEN2	; pointers to buffers to be swapped
 ViewBuffer:	DC.L SCREEN1
 
-;*******************************************************************************
+;**************************************************************
 	SECTION "ChipData",DATA_C	;declared data that must be in chipmem
-;*******************************************************************************
+;**************************************************************
 
 BG1:	INCBIN	"klogo_hd.raw"
+
+MODULE:	INCBIN	"FatalDefrag_v4.P61"	; code $9104
 
 Copper:
 	DC.W $1FC,0	;Slow fetch mode, remove if AGA demo.
@@ -175,9 +196,9 @@ BplPtrs:	DC.W $E0,0
 	DC.W $FFFF,$FFFE	;magic value to end copperlist
 _Copper:
 
-;*******************************************************************************
+;***************************************************************
 	SECTION "ChipBuffers",BSS_C	;BSS doesn't count toward exe size
-;*******************************************************************************
+;***************************************************************
 
 SCREEN1:		DS.B h*bwid	; Define storage for buffer 1
 SCREEN2:		DS.B h*bwid	; two buffers
