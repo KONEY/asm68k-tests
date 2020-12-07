@@ -8,7 +8,7 @@
 w=640		;screen width, height, depth
 h=512
 bpls=3		;handy values:
-bpl=w/16*2	;byte-width of 1 bitplane line (40)
+bpl=w/16*2	;byte-width of 1 bitplane line (80)
 bwid=bpls*bpl	;byte-width of 1 pixel line (all bpls)
 
 ;********** Demo **********	; Demo-specific non-startup code below.
@@ -55,30 +55,31 @@ MainLoop:
 	bsr	WaitBlitter
 
 	; ** CODE FOR HI-RES **************************************
-	MOVE.L	#$1FF00,D1	; bit per la selezione tramite AND
-	MOVE.L	#$01000,D2	; linea da aspettare = $010
-	Waity1:
-	MOVE.L	VPOSR,D0		; VPOSR e VHPOSR - $dff004/$dff006
-	AND.L	D1,D0		; Seleziona solo i bit della pos. verticale
-	CMP.L	D2,D0		; aspetta la linea $010
-	BNE.S	Waity1
-	Waity2:
-	MOVE.L	VPOSR,D0		; VPOSR e VHPOSR - $dff004/$dff006
-	AND.L	D1,D0		; Seleziona solo i bit della pos. verticale
-	CMP.L	D2,D0		; aspetta la linea $010
-	BEQ.S	Waity2
+	;MOVE.L	#$1FF00,D1	; bit per la selezione tramite AND
+	;MOVE.L	#$01000,D2	; linea da aspettare = $010
+	;Waity1:
+	;MOVE.L	VPOSR,D0		; VPOSR e VHPOSR - $dff004/$dff006
+	;AND.L	D1,D0		; Seleziona solo i bit della pos. verticale
+	;CMP.L	#0,D0		; aspetta la linea $010
+	;BNE.S	Waity1
 
-	MOVE.L	KONEYBG,D0	; Indirizzo bitplane
-	btst.b	#15-8,VPOSR	; VPOSR LOF bit?
-	BEQ.S	.pointBitmap	; Se si, tocca alle linee dispari
-	ADD.L	#bpl,D0		; Oppure aggiungi la lunghezza di una linea,
-	.pointBitmap:
+	MOVE.L	KONEYBG,D3	; Indirizzo bitplane
+	;BTST.B	#15-8,VPOSR	; VPOSR LOF bit?
+	MOVE.W	IsLineEven,D7	; GET ODD/EVEN BIT
+	NOT.W	D7		; CHANGE IT
+	MOVE.W	D7,IsLineEven	; PUT IT BACK
+	CMPI.W	#0,D7		; IF 0 SKIP A LINE
+	BEQ.S	.skipLine		; Se si, tocca alle linee dispari
+	ADD.L	#bpl,D3		; Oppure aggiungi la lunghezza di una linea,
+	.skipLine:
+
 	; ** CODE FOR HI-RES **************************************
-	MOVE.L	D0,DrawBuffer
+	MOVE.L	D3,DrawBuffer
 
 	; do stuff here :)
 
 	;CLR.W	$100		; DEBUG | w 0 100 2
+	CLR.W	$100		; THIS IS NEEDED FOR HI-RES... LOL!!
 
 	;*--- main loop end ---*
 	BTST	#6,$BFE001
@@ -95,10 +96,10 @@ PokePtrs:				; Generic, poke ptrs into copper list
 	.bpll:	
 	move.l	a0,d2
 	swap	d2
-	move.w	d2,(a1)		;high word of address
-	move.w	a0,4(a1)		;low word of address
-	addq.w	#8,a1		;skip two copper instructions
-	add.l	d0,a0		;next ptr
+	move.w	d2,(a1)		; high word of address
+	move.w	a0,4(a1)		; low word of address
+	addq.w	#8,a1		; skip two copper instructions
+	add.l	d0,a0		; next ptr
 	dbf	d1,.bpll
 	rts
 
@@ -126,10 +127,10 @@ VBint:				; Blank template VERTB interrupt
 	RTS
 
 ;********** Fastmem Data **********
+IsLineEven:	DC.W 0
 KONEYBG:		DC.L BG1		; INIT BG
 DrawBuffer:	DC.L SCREEN2	; pointers to buffers to be swapped
 ViewBuffer:	DC.L SCREEN1
-
 
 ;*******************************************************************************
 	SECTION "ChipData",DATA_C	;declared data that must be in chipmem
