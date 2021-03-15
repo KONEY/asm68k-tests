@@ -109,9 +109,11 @@ START:
 
 	; **** ROTATING??? ****
 	lea.l	SinTbl(pc),a0
-	move.w	30(a0),d3
+	ADD.W	ANGLE,A0
+	move.w	(a0),d3
 	lea.l	CosTbl(pc),a0
-	move.w	30(a0),d4
+	ADD.W	ANGLE,A0
+	move.w	(a0),d4
 	; Rotate around Z Axis:
 	VarTimesTrig d0,d4,d5	;left = rotatedX * cos
 	VarTimesTrig d1,d3,d6	;right = rotatedY * sin
@@ -131,10 +133,6 @@ START:
 	MOVE.W	(A2)+,D1		; Y2
 
 	; **** ROTATING??? ****
-	lea.l	SinTbl(pc),a0
-	move.w	30(a0),d3
-	lea.l	CosTbl(pc),a0
-	move.w	30(a0),d4
 	; Rotate around Z Axis:
 	VarTimesTrig d0,d4,d5	;left = rotatedX * cos
 	VarTimesTrig d1,d3,d6	;right = rotatedY * sin
@@ -316,7 +314,7 @@ WBlit_Set:
 	rts
 
 ;****************************************************************************
-ANGLE:	DC.W 0
+ANGLE:	DC.W 24
 BUFFER0:	DC.W 0
 BUFFER1:	DC.W 0
 BUFFER7:	DC.W 0
