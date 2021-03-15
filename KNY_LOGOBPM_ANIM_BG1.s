@@ -32,7 +32,7 @@ Inizio:
 mouse:
 	move.w	$000,$dff180	; metti VHPOSR in COLOR00 (lampeggio!!)
 	bsr.w	PRINT		; Stampa le linee di testo sullo schermo
-	move.w	$209,$dff180	; metti VHPOSR in COLOR00 (lampeggio!!)
+	move.w	$222,$dff180	; metti VHPOSR in COLOR00 (lampeggio!!)
 	bsr.w	PRINT		; Stampa le linee di testo sullo schermo
 	;move.w	$dff006,$dff182	; metti VHPOSR in COLOR00 (lampeggio!!)
 	btst	#6,$bfe001	; tasto sinistro del mouse premuto?
@@ -63,15 +63,15 @@ OldCop:				; Qua ci va l'indirizzo della vecchia COP di sistema
 PRINT:
 	LEA	BITPLANE,A3	; Indirizzo del bitplane destinazione in a3
 	MOVE.L	#KONEY,A2
-	CLR		D6
+	CLR	D6
 	MOVE.B	#4,D6		; RESET D6
-	ADD.W	#40*115,A3	; POSITIONING
+	ADD.W	#40*116,A3	; POSITIONING
 
 LOOP:	; LOOP KE CICLA LA BITMAP
 	;move.w	$001,$dff180	; metti VHPOSR in COLOR00 (lampeggio!!)
-	ADD.W	#15,A3
+	ADD.W	#16,A3
 	MOVE.L	(A2)+,(A3)	
-	ADD.W	#25,A3
+	ADD.W	#24,A3
 	DBRA	D6,LOOP
 	;move.w	$205,$dff180	; metti VHPOSR in COLOR00 (lampeggio!!)
 
