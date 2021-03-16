@@ -20,6 +20,9 @@ VarTimesTrig macro ;3 = 1 * 2, where 2 is cos(Angle)^(TrigShift*2) or sin(Angle)
 
 	INCLUDE	"sincosin_table.i"	; VALUES
 
+KONEY:	DC.W 0,0,0,1
+	DC.W 0,1,1,1
+
 POINTS:
 	DC.W 0,0,0,5	;
 	DC.W 0,5,2,5	;
@@ -79,79 +82,42 @@ START:
 
 	bsr.w	InitLine		; inizializza line-mode
 
-	move.w	#$ffff,d0		; linea continua
-	bsr.w	SetPattern	; definisce pattern
-
-	; **** ROTATING??? ****
-	;lea.l	SinTbl(pc),a0
-	;move.w	4(a0),d3
-	;lea.l	CosTbl(pc),a0
-	;move.w	4(a0),d4
-	; Rotate around Z Axis:
-	;VarTimesTrig d0,d4,d5	;left = rotatedX * cos
-	;VarTimesTrig d1,d3,d6	;right = rotatedY * sin
-	;move.l	d5,d7		;tmp = left - right
-	;sub.l	d6,d7
-	;VarTimesTrig d0,d3,d5	;left = rotatedX * sin
-	;VarTimesTrig d1,d4,d6	;right = rotatedY * cos
-	;move.l	d5,d1		;rotatedY = left + right
-	;add.l	d6,d1
-	;move.l	d7,d0		;rotatedX = tmp
-	; **** ROTATING??? ****
+	;move.w	#$ffff,d0		; linea continua
+	;bsr.w	SetPattern	; definisce pattern
+	MOVE.W	#$FFFF,$DFF072	; BLTBDAT = pattern della linea!
 
 	MOVE.W	#24-1,D7
 	LEA	POINTS,A2
 	.fetchCoordz:
-	MOVE.W	D7,BUFFER7
+	MOVEM.L	D7,-(SP)
 
 	MOVE.W	(A2)+,D0		; X1
 	MOVE.W	(A2)+,D1		; Y1
 
 	; **** ROTATING??? ****
-	lea.l	SinTbl(pc),a0
-	ADD.W	ANGLE,A0
-	move.w	(a0),d3
-	lea.l	CosTbl(pc),a0
-	ADD.W	ANGLE,A0
-	move.w	(a0),d4
-	; Rotate around Z Axis:
-	VarTimesTrig d0,d4,d5	;left = rotatedX * cos
-	VarTimesTrig d1,d3,d6	;right = rotatedY * sin
-	move.l	d5,d7		;tmp = left - right
-	sub.l	d6,d7
-	VarTimesTrig d0,d3,d5	;left = rotatedX * sin
-	VarTimesTrig d1,d4,d6	;right = rotatedY * cos
-	move.l	d5,d1		;rotatedY = left + right
-	add.l	d6,d1
-	move.l	d7,d0		;rotatedX = tmp
-	; **** ROTATING??? ****
+	MOVE.W	ANGLE,D7
+	LEA.L	SinTbl(pc),A0
+	MOVE.W	(A0,D7),D3
+	LEA.L	CosTbl(pc),A0
+	MOVE.W	(A0,D7),D4
 
-	MOVE.W	D0,BUFFER0
-	MOVE.W	D1,BUFFER1
+	BSR.W	__ROTATE
+
+	MOVEM.L	D0-D1,-(SP)
 
 	MOVE.W	(A2)+,D0		; X2
 	MOVE.W	(A2)+,D1		; Y2
 
-	; **** ROTATING??? ****
-	; Rotate around Z Axis:
-	VarTimesTrig d0,d4,d5	;left = rotatedX * cos
-	VarTimesTrig d1,d3,d6	;right = rotatedY * sin
-	move.l	d5,d7		;tmp = left - right
-	sub.l	d6,d7
-	VarTimesTrig d0,d3,d5	;left = rotatedX * sin
-	VarTimesTrig d1,d4,d6	;right = rotatedY * cos
-	move.l	d5,d1		;rotatedY = left + right
-	add.l	d6,d1
-	move.l	d7,d0		;rotatedX = tmp
-	; **** ROTATING??? ****
+	BSR.W	__ROTATE
 
 	MOVE.W	D0,D2		; X2
 	MOVE.W	D1,D3		; Y2
-	MOVE.W	BUFFER0,D0
-	MOVE.W	BUFFER1,D1
+
+	MOVEM.L	(SP)+,D0-D1
 
 	BSR.W	Drawline
-	MOVE.W	BUFFER7,D7
+
+	MOVEM.L	(SP)+,D7
 	DBRA	D7,.fetchCoordz
 
 mouse:
@@ -299,22 +265,24 @@ WBlit_Init:
 	rts
 
 ;******************************************************************************
-; Questa routine definisce il pattern che deve essere usato per disegnare
-; le linee. In pratica si limita a settare il registro BLTBDAT.
-; D0 - contiene il pattern della linea 
+; D0-D1
 ;******************************************************************************
 
-SetPattern:
-	btst	#6,2(a5)		; dmaconr
-WBlit_Set:
-	btst	#6,2(a5)		; dmaconr - attendi che il blitter abbia finito
-	bne.s	Wblit_Set
-
-	move.w	d0,$72(a5)	; BLTBDAT = pattern della linea!
-	rts
+__ROTATE:
+	; Rotate around Z Axis:
+	VarTimesTrig d0,d4,d5	;left = rotatedX * cos
+	VarTimesTrig d1,d3,d6	;right = rotatedY * sin
+	move.l	d5,d7		;tmp = left - right
+	sub.l	d6,d7
+	VarTimesTrig d0,d3,d5	;left = rotatedX * sin
+	VarTimesTrig d1,d4,d6	;right = rotatedY * cos
+	move.l	d5,d1		;rotatedY = left + right
+	add.l	d6,d1
+	move.l	d7,d0		;rotatedX = tmp
+	RTS
 
 ;****************************************************************************
-ANGLE:	DC.W 24
+ANGLE:	DC.W 10
 BUFFER0:	DC.W 0
 BUFFER1:	DC.W 0
 BUFFER7:	DC.W 0
@@ -336,8 +304,8 @@ COPPER:
 BPLPOINTERS:
 	dc.w	$e0,$0000,$e2,$0000	;primo	 bitplane
 
-	dc.w	$180,$002		; color0
-	dc.w	$182,$FFF		; color1
+	dc.w	$180,$777		; color0
+	dc.w	$182,$000		; color1
 	dc.w	$FFFF,$FFFE	; Fine della copperlist
 
 ;****************************************************************************
