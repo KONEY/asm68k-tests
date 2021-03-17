@@ -20,8 +20,31 @@ VarTimesTrig macro ;3 = 1 * 2, where 2 is cos(Angle)^(TrigShift*2) or sin(Angle)
 
 	INCLUDE	"sincosin_table.i"	; VALUES
 
-KONEY:	DC.W 0,0,0,1
+KONEY:	; ROTATED 90 DEG
+	DC.W 0,0,0,1
 	DC.W 0,1,1,1
+	DC.W 1,1,1,2
+	DC.W 1,2,2,2
+	DC.W 2,2,2,3
+	DC.W 2,3,1,3
+	DC.W 1,3,1,4
+	DC.W 1,4,0,4
+	DC.W 0,4,0,5
+	DC.W 0,5,1,5
+	DC.W 1,5,1,4
+	DC.W 1,4,2,4
+	DC.W 2,4,2,3
+	DC.W 2,3,3,3
+	DC.W 3,3,3,5
+	DC.W 3,5,5,5
+	DC.W 5,5,0,5
+	DC.W 0,5,0,4
+	DC.W 0,4,2,4
+	DC.W 2,4,2,2
+	DC.W 2,2,2,1
+	DC.W 2,1,1,1
+	DC.W 1,1,0,1
+	DC.W 0,1,0,0
 
 POINTS:
 	DC.W 0,0,0,5	;
