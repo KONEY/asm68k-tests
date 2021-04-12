@@ -5,7 +5,7 @@
 	include	"startup1.s"	; Salva Copperlist Etc.
 ;*****************************************************************************
 
-PIXELSIDE=8
+
 MARGINX=(320/2)
 MARGINY=(256/2)
 TrigShift=7
@@ -21,56 +21,30 @@ VarTimesTrig macro ;3 = 1 * 2, where 2 is cos(Angle)^(TrigShift*2) or sin(Angle)
 	INCLUDE	"sincosin_table.i"	; VALUES
 
 KONEY:	; ROTATED 90 DEG
-	DC.W 0,0,0,1
-	DC.W 0,1,1,1
-	DC.W 1,1,1,2
-	DC.W 1,2,2,2
-	DC.W 2,2,2,3
-	DC.W 2,3,1,3
-	DC.W 1,3,1,4
-	DC.W 1,4,0,4
-	DC.W 0,4,0,5
-	DC.W 0,5,1,5
-	DC.W 1,5,1,4
-	DC.W 1,4,2,4
-	DC.W 2,4,2,3
-	DC.W 2,3,3,3
-	DC.W 3,3,3,5
-	DC.W 3,5,5,5
+	DC.W 0,0,1,0
+	DC.W 1,0,1,1
+	DC.W 1,1,2,1
+	DC.W 2,1,2,2
+	DC.W 2,2,3,2
+	DC.W 3,2,3,1
+	DC.W 3,1,4,1
+	DC.W 4,1,4,0
+	DC.W 4,0,5,0
+	DC.W 5,0,5,1
+	DC.W 5,1,4,1
+	DC.W 4,1,4,2
+	DC.W 4,2,3,2
+	DC.W 3,2,3,3
+	DC.W 3,3,5,3
+	DC.W 5,3,5,5
 	DC.W 5,5,0,5
 	DC.W 0,5,0,4
 	DC.W 0,4,2,4
 	DC.W 2,4,2,2
-	DC.W 2,2,2,1
-	DC.W 2,1,1,1
+	DC.W 2,2,1,2
+	DC.W 1,2,1,1
 	DC.W 1,1,0,1
 	DC.W 0,1,0,0
-
-POINTS:
-	DC.W 0,0,0,5	;
-	DC.W 0,5,2,5	;
-	DC.W 2,5,2,3	;
-	DC.W 2,3,3,3	;
-	DC.W 3,3,3,2	;
-	DC.W 0,0,1,0	;
-	DC.W 1,0,1,2	;
-	DC.W 1,2,3,2	;
-	DC.W 3,1,4,1	;
-	DC.W 3,2,4,2	;
-	DC.W 3,3,4,3	;
-	DC.W 3,4,4,4	;
-	DC.W 4,1,4,2	;
-	DC.W 3,3,3,4	;
-	DC.W 4,3,4,4	;
-	DC.W 4,0,4,1	;
-	DC.W 5,0,5,1	;
-	DC.W 4,0,5,0	;
-	DC.W 4,1,5,1	;
-	DC.W 4,4,4,5	;
-	DC.W 5,4,5,5	;
-	DC.W 4,4,5,4	;
-	DC.W 4,5,5,5	;
-	DC.W 3,1,3,2	;
 
 		;5432109876543210
 DMASET	EQU	%1000001111000000	; copper,bitplane,blitter DMA
@@ -78,11 +52,14 @@ DMASET	EQU	%1000001111000000	; copper,bitplane,blitter DMA
 START:
 	; ** POINTS TO COORDS **
 	MOVE.W	#96-1,D1
-	LEA	POINTS,A2
+	LEA	KONEY,A2
 	.calcuCoords:
 	MOVE.W	(A2),D0
-	MULU	#PIXELSIDE,D0
-	SUB.W	#(PIXELSIDE*5/2),D0	
+	MOVE.W	PXLSIDE,D2
+	MULU	D2,D0
+	MULU	#5,D2
+	DIVU	#2,D2
+	SUB.W	D2,D0	
 	;ADD.W	#MARGIN,D0
 	MOVE.W	D0,(A2)+
 	DBRA	D1,.calcuCoords
@@ -110,7 +87,7 @@ START:
 	MOVE.W	#$FFFF,$DFF072	; BLTBDAT = pattern della linea!
 
 	MOVE.W	#24-1,D7
-	LEA	POINTS,A2
+	LEA	KONEY,A2
 	.fetchCoordz:
 	MOVEM.L	D7,-(SP)
 
@@ -305,10 +282,8 @@ __ROTATE:
 	RTS
 
 ;****************************************************************************
-ANGLE:	DC.W 10
-BUFFER0:	DC.W 0
-BUFFER1:	DC.W 0
-BUFFER7:	DC.W 0
+ANGLE:	DC.W 90
+PXLSIDE:	DC.W 8
 
 	SECTION	GRAPHIC,DATA_C
 
@@ -341,25 +316,3 @@ BITPLANE:
 	end
 
 ;****************************************************************************
-
-In questo esempio presentiamo il tracciamento di linee. Esso viene realizzato
-mediante 3 diverse routines.
-La routine "InitLine" setta i registri il cui contenuto e` indipendente dai
-parametri della linea (gli estremi) e che pertanto possono essere setati una
-volta sola all'inizio del programma.
-La routine "SetPattern" definisce il pattern da usare per una linea. Ogni
-volta che si desidera usare un pattern diverso si deve eseguire questa 
-routine. Al contrario, se ci sono diverse linee da tracciare con lo stesso
-pattern questa routine puo` essere eseguita una sola volta.
-La routine "Drawline" e` la routine che disegna effetivamente la linea ed
-e` anche la piu` complessa. All'inizio vengono calcolati DX e DY e in base alle
-coordinate degli estremi, e viene determinato il codice ottante da usare.
-Per compiere queste operazioni sono necessari una serie di sottrazioni e di
-confronti che prendono in esame tutti i possibili casi.
-Successivamente vengono calcolati i valori da inserire negli altri registri,
-come spiegato nei commenti.
-Notate che viene usato LF=$4A, il che provoca un EOR tra la linea e lo sfondo.
-Lo potete notare osservando le 2 linee che si intersecano: l'intersezione e`
-un pixel di valore 0. Se provate a porre LF=$CA noterete che l'intersezione
-e` invece un pixel di valore 1.
-

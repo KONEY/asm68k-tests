@@ -7,8 +7,8 @@ YScreenOrigin=110
 ZCenterIn3DSpace=170
 PointOffs=55
 TrigShift=7
-PointCnt=8
-LineCnt=5
+PointCnt=15
+LineCnt=14
 
 VarTimesTrig macro ;3 = 1 * 2, where 2 is cos(Angle)^(TrigShift*2) or sin(Angle)^(TrigShift*2)
 	move.l \1,\3
@@ -239,30 +239,21 @@ XYZin3D:	dc.w -PointOffs,PointOffs,PointOffs	;a 0 Relative to cube's origin
 XYScreenCoords:	dcb.w PointCnt*2,0
 
 Edges:	;multiply w/ 2 since word=2 bytes & w/ 2 since both X & Y stored in XYScreenCoords
-	;dc.w 2*2*2,3*2*2	;a->b
-	;dc.w 3*2*2,7*2*2	;b->c
-	;dc.w 7*2*2,6*2*2	;c->d
-	;dc.w 6*2*2,2*2*2	;d->a
-	;dc.w 2*2*2,7*2*2	;a->c	DIAG
-	;dc.w 3*2*2,6*2*2	;b->d	DIAG
-
-	;dc.w 0*2*2,4*2*2	; LEFT
-	DC.B 0,0,0,16	; LEFT
-	DC.B 0,16,0,20	; TOP
-	DC.B 0,20,0,4	; RIGHT
-	DC.B 0,4,0,0	; BOTTOM
-
-	DC.w 3*2*2,0	; LEFT
-
-	;dc.w 3*2*2,0*2*2	;d->a
-	;dc.w 0*2*2,1*2*2	;a->b
-	;dc.w 0*2*2,4*2*2	;a->e
-	;dc.w 4*2*2,5*2*2	;e->f
-	;dc.w 5*2*2,6*2*2	;f->g
-
-	;dc.w 7*2*2,4*2*2	;h->e
-	;dc.w 1*2*2,5*2*2	;b->f
-	;dc.w 1*2*2,2*2*2	;b->c
+	dc.w 2*2*2,3*2*2	;a->b
+	dc.w 3*2*2,7*2*2	;b->c
+	dc.w 7*2*2,6*2*2	;c->d
+	dc.w 6*2*2,2*2*2	;d->a
+	dc.w 2*2*2,7*2*2	;a->c	DIAG
+	dc.w 3*2*2,6*2*2	;b->d	DIAG
+	dc.w 0*2*2,4*2*2	; LEFT
+	dc.w 3*2*2,0*2*2	;d->a
+	dc.w 0*2*2,1*2*2	;a->b
+	dc.w 0*2*2,4*2*2	;a->e
+	dc.w 4*2*2,5*2*2	;e->f
+	dc.w 5*2*2,6*2*2	;f->g
+	dc.w 7*2*2,4*2*2	;h->e
+	dc.w 1*2*2,5*2*2	;b->f
+	dc.w 1*2*2,2*2*2	;b->c
 
 SinTbl:	dc.w 0,572,1143,1713,2280,2845,3406,3964,4516,5063
 	dc.w 5604,6138,6664,7182,7692,8192,8682,9162,9630,10087

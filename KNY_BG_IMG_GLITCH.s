@@ -156,11 +156,9 @@ Copper:
 	DC.W $94,$D0		;and stop for standard screen.
 
 	DC.W $106,$0C00		;(AGA compat. if any Dual Playf. mode)
-	;dc.w $108,bwid-bpl	;modulos
-	;dc.w $10a,bwid-bpl
 
-	DC.W $108,0		; Bpl1Mod
-	DC.W $10A,0		; Bpl2Mod
+	DC.W $108,0		;bwid-bpl	;modulos
+	DC.W $10A,0		;bwid-bpl	;RISULTATO = 80 ?
 
 	DC.W $102,0		;Scroll register (and playfield pri)
 
