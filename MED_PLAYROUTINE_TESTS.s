@@ -2,8 +2,19 @@
 ;*** MiniStartup by Photon ***
 	INCDIR	"NAS:AMIGA/CODE/KONEY/"
 	SECTION	"Code",CODE
-	INCLUDE	"Blitter-Register-List.S"
 	INCLUDE	"PhotonsMiniWrapper1.04!.S"
+	INCLUDE	"Blitter-Register-List.S"
+	; ---  Call MED code  ---
+	;XREF	_PlayModule
+	;XREF	_InitPlayer
+	;XREF	_RemPlayer
+	;XREF	_InitModule
+
+	;SECTION	"text",CODE
+	; ---  Call MED code  ---
+
+	INCLUDE	"PT12_OPTIONS.i"
+	INCLUDE	"P6112-Play-stripped.i"
 ;********** Constants **********
 w=320		;screen width, height, depth
 h=256
@@ -36,7 +47,7 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	bsr.w	ClearScreen
 	lea	Screen2,a1
 	bsr.w	ClearScreen
-	bsr	WaitBlitter
+	bsr.w	WaitBlitter
 	;*--- start copper ---*
 	lea	Screen1,a0
 	moveq	#bpl,d0
@@ -50,20 +61,20 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	BSR.W	__PRINT2X
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
 
-	; ---  Call MED code  ---
-	;XREF	_PlayModule
-	;XREF	_InitPlayer
-	;XREF	_RemPlayer
-	;XREF	_InitModule
-
-	;SECTION	"text",CODE
-
 	movem.l	d0-d7/a0-a6,-(sp)
+	;CLR.W	$100	; DEBUG | w 0 100 2
 	jsr	_InitPlayer
 	lea	MEDMODULE,a0
 	jsr	_PlayModule
 	movem.l	(sp)+,d0-d7/a0-a6
-	; ---  Call MED code  ---
+
+	;MOVEM.L	D0-A6,-(SP)
+	;lea	Module1,a0
+	;sub.l	a1,a1
+	;sub.l	a2,a2
+	;moveq	#0,d0
+	;jsr	P61_Init
+	;MOVEM.L (SP)+,D0-A6
 
 	MOVE.L	#Copper,$80(a6)
 
@@ -72,7 +83,7 @@ MainLoop:
 	move.w	#$12c,d0		;No buffering, so wait until raster
 	bsr.w	WaitRaster	;is below the Display Window.
 	;*--- swap buffers ---*
-	movem.l	DrawBuffer(PC),a2-a3
+	movem.l	DrawBuffer,a2-a3
 	exg	a2,a3
 	movem.l	a2-a3,DrawBuffer	;draw into a2, show a3
 	;*--- show one... ---*
@@ -85,7 +96,7 @@ MainLoop:
 	move.l	a2,a1
 	;bsr	ClearScreen
 
-	bsr	WaitBlitter
+	bsr.w	WaitBlitter
 	MOVE.L	KONEYBG,DrawBuffer
 
 	; do stuff here :)
@@ -124,7 +135,7 @@ PokePtrs:				; Generic, poke ptrs into copper list
 	rts
 
 ClearScreen:			; a1=screen destination address to clear
-	bsr	WaitBlitter
+	bsr.W	WaitBlitter
 	clr.w	$66(a6)		; destination modulo
 	move.l	#$01000000,$40(a6)	; set operation type in BLTCON0/1
 	move.l	a1,$54(a6)	; destination address
@@ -198,7 +209,7 @@ __FILLRNDBG:
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
-_RandomWord:	bsr	_RandomByte
+_RandomWord:	bsr.s	_RandomByte
 		rol.w	#8,d5
 _RandomByte:	move.b	$dff007,d5	;$dff00a $dff00b for mouse pos
 		move.b	$bfd800,d3
@@ -467,6 +478,8 @@ __BLIT_GLITCH_PLANE:
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
+	INCLUDE	"med/proplayer.a"
+
 ;********** Fastmem Data **********
 DITHERFRAMEOFFSET:	DC.W 0
 GLITCHER_SRC:	DC.L 0
@@ -511,8 +524,6 @@ PATCH:		DS.B 10*64*bpls	;I need a buffer to save trap BG
 
 TEXTINDEX:	DC.W 0
 
-	INCLUDE	"med/proplayer.a"
-
 ;*******************************************************************************
 	SECTION "ChipData",DATA_C	;declared data that must be in chipmem
 ;*******************************************************************************
@@ -523,8 +534,8 @@ TXTSCROLLBUF:	DS.B	(bpl)*8
 _TXTSCROLLBUF:
 
 BG1:		INCBIN	"BG_METAL2_320256_4.raw"
-
-MEDMODULE:	INCBIN	"octamed_test.med"		;<<<<< MODULE NAME HERE!
+MEDMODULE:	INCBIN	"med/octamed_test.med"	;<<<<< MODULE NAME HERE!
+Module1:		INCBIN	"p61_testmod.p61"	; code $9104
 
 FONT:		DC.L	0,0			; SPACE CHAR
 		INCBIN	"scummfnt_8x752.raw",0

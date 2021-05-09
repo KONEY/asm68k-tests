@@ -83,7 +83,8 @@ usecode	=-1	;CHANGE! to the USE hexcode from P61con for a big
 		;You will LOSE RASTERTIME AND FEATURES if you don't.
 
 ;P61pl=usecode&$9104	;FatalDefrag
-P61pl=usecode&$9305	;CrippleCyborg
+;P61pl=usecode&$9305	;CrippleCyborg
+P61pl=usecode&$9000	; test mod
 
 split4	=0	;Great time gain, but INCOMPATIBLE with F03, F02, and F01
 		;speeds in the song! That's the ONLY reason it's default 0.

@@ -1,5 +1,4 @@
 ;*** MiniWrapper by Photon ***
-
 Start:	
 	move.l 4.w,a6		;Exec library base address in a6
 	sub.l a4,a4
@@ -9,12 +8,12 @@ Start:
 	jsr -30(a6)		;enter Supervisor mode
 ;*--- save view+coppers ---*
 
-.yes68k:
+	.yes68k:
 	MOVE.L $78.W,A4		; or $6c(a0) with a0=vbrbase BY KONEY
 	lea .GfxLib(PC),a1		;either way return to here and open
 	jsr -408(a6)		;graphics library
 	tst.l d0			;if not OK,
-	beq.s .quit		;exit program.
+	beq.w .quit		;exit program.
 	move.l d0,a5		;a5=gfxbase
 
 	move.l a5,a6
@@ -25,11 +24,11 @@ Start:
 ;*--- save int+dma ---*
 
 	lea $dff000,a6
-	bsr.s WaitEOF		;wait out the current frame
+	bsr.w WaitEOF		;wait out the current frame
 	move.l $1c(a6),-(sp)	;save intena+intreq
 	move.w 2(a6),-(sp)	;and dma
 	move.l $6c(a4),-(sp)	;and also the VB int vector for sport.
-	bsr.s AllOff		;turn off all interrupts+DMA
+	bsr.w AllOff		;turn off all interrupts+DMA
 
 ;*--- call demo ---*
 
@@ -61,22 +60,22 @@ Start:
 	move.l a6,a1		;close graphics library
 	move.l 4.w,a6
 	jsr -414(a6)
-.quit:	
+	.quit:	
 	moveq #0,d0		;clear error return code to OS
 	rts			;back to AmigaDOS/Workbench.
 
-.GetVBR:
+	.GetVBR:
 	dc.w $4e7a,$c801		;hex for "movec VBR,a4"
 	rte			;return from Supervisor mode
 
-.GfxLib:
+	.GfxLib:
 	dc.b "graphics.library",0,0
 
 WaitEOF:				;wait for end of frame
 	jsr WaitBlitter
 	move.w #$138,d0
 WaitRaster:			;Wait for scanline d0. Trashes d1.
-.l:	
+	.l:	
 	move.l 4(a6),d1
 	lsr.l #1,d1
 	lsr.w #7,d1
@@ -95,7 +94,7 @@ IntReqD2:
 
 WaitBlitter:			;wait until blitter is finished
 	tst.w (a6)		;for compatibility with A1000
-.loop:	
+	.loop:	
 	btst #6,2(a6)
 	bne.s .loop
 	rts
