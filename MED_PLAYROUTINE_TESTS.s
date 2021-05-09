@@ -51,23 +51,9 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	BSR.W	__PRINT2X
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
 
-	;movem.l	d0-d7/a0-a6,-(sp)
-
-	;CLR.W	$100	; DEBUG | w 0 100 2
+	;CLR.W	$100		; DEBUG | w 0 100 2
+	; in photon wrapper comment:;move.w d2,$9a(a6) ;INTENA
 	jsr	_startmusic
-
-	;jsr	_InitPlayer
-	;lea	MEDMODULE,a0
-	;jsr	_PlayModule
-	;movem.l	(sp)+,d0-d7/a0-a6
-
-	;MOVEM.L	D0-A6,-(SP)
-	;lea	Module1,a0
-	;sub.l	a1,a1
-	;sub.l	a2,a2
-	;moveq	#0,d0
-	;jsr	P61_Init
-	;MOVEM.L (SP)+,D0-A6
 
 	MOVE.L	#Copper,$80(a6)
 
@@ -391,7 +377,7 @@ TXTSCROLLBUF:	DS.B	(bpl)*8
 _TXTSCROLLBUF:
 
 BG1:		INCBIN	"BG_METAL2_320256_4.raw"
-MEDMODULE:	INCBIN	"med/octamed_test.med"	;<<<<< MODULE NAME HERE!
+easymod:		INCBIN	"med/octamed_test.med"	;<<<<< MODULE NAME HERE!
 ;Module1:		INCBIN	"p61_testmod.p61"		; code $9104
 
 FONT:		DC.L	0,0			; SPACE CHAR

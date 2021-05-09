@@ -33,7 +33,6 @@ Start:
 ;*--- call demo ---*
 
 	movem.l a4-a6,-(sp)
-	;CLR.W	$100		; DEBUG | w 0 100 2
 	jsr Demo			;call our demo \o/
 	movem.l (sp)+,a4-a6
 
@@ -87,7 +86,7 @@ WaitRaster:			;Wait for scanline d0. Trashes d1.
 AllOff:	
 	move.w #$7fff,d2		;clear all bits
 	move.w d2,$96(a6)		;in DMACON,
-	move.w d2,$9a(a6)		;INTENA,
+	;move.w d2,$9a(a6)	;INTENA,	; DONT RESET FOR MED PLAYER
 IntReqD2:
 	move.w d2,$9c(a6)		;and INTREQ
 	move.w d2,$9c(a6)		;twice for A4000 compatibility

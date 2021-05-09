@@ -3410,7 +3410,7 @@ _periodtable:
 	ENDC
 		XDEF	_modnum
 	IFNE	EASY
-easymod:		INCBIN	"med/octamed_test.med"	;<<<<< MODULE NAME HERE!
+;easymod:		INCBIN	"med/octamed_test.med"	;<<<<< MODULE NAME HERE!
 	ENDC
 _chipzero:	dc.l	0
 _modnum:		dc.w	0		;number of module to play
