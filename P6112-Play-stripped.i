@@ -297,7 +297,7 @@ P61_Temp2Offset:
 	dc.l P61_temp2-P61_motuuli
 P61_Temp3Offset:
 	dc.l P61_temp3-P61_motuuli
-P61_getnote:macro
+P61_getnote:	macro
 	moveq #$7e,d0
 	and.b (a5),d0
 	beq.b .nonote
@@ -360,7 +360,7 @@ P61_Init:
 	lea P61_Quiet(PC),a3
 	moveq #0,d1
 	moveq #channels-1,d5
-.choffl:move.l a3,(a5)+
+.choffl:	move.l a3,(a5)+
 	move.l #1<<16+124,(a5)+
 	move.l d1,(a5)+
 	addq.w #4,a5
@@ -438,7 +438,7 @@ P61_kook:
 	move.b (a5)+,d2
 	sub.b (a5),d2
 	move.b d2,(a5)+
-.loop:sub.b (a5),d2
+.loop:	sub.b (a5),d2
 	move.b d2,(a5)+
 	sub.b (a5),d2
 	move.b d2,(a5)+
@@ -480,7 +480,7 @@ P61_gene:
 	subq #1,d7
 	moveq #0,d5
 	moveq #0,d4
-.lo:move.b (a1)+,d4
+.lo:	move.b (a1)+,d4
 	moveq #$f,d3
 	and d4,d3
 	lsr #4,d4
@@ -515,7 +515,7 @@ P61_gene:
 	lea P61_temp3(pc),a5
 	moveq #Channel_Block_Size/2-2,d0
 	moveq #0,d1
-.cl:move d1,(a1)+
+.cl:	move d1,(a1)+
 	move d1,(a2)+
 	move d1,(a4)+
 	move d1,(a5)+
@@ -785,7 +785,7 @@ P61_timerB:
 P61_pois:
 	move.l (sp)+,a6
 	rts
-P61_err:moveq #-1,d0
+P61_err:	moveq #-1,d0
 	bra.b P61_pois
 P61_ciaaddr:
 	dc.l $bfd500,$bfd700
@@ -883,7 +883,7 @@ ticksframeNTSC=59719*4+3
 P61_osc:
 	move.w P61_Period(a0),d4
 	bne.b .non0
-.div0:lea Channel_Block_Size(a0),a0
+.div0:	lea Channel_Block_Size(a0),a0
 	moveq #0,d1
 	rts
 .non0:
@@ -1292,7 +1292,7 @@ P61_fineup2:
 	cmp P61_Period(a5),d0
 	ble.b .jup
 	move d0,P61_Period(a5)
-.jup:move P61_Period(a5),6(a4)
+.jup:	move P61_Period(a5),6(a4)
 	bra.w P61_contfxdone
 	endc
 	ifne P61_fsd
@@ -1305,7 +1305,7 @@ P61_finedwn2:
 	cmp #856,P61_Period(a5)
 	ble.b .jup
 	move #856,P61_Period(a5)
-.jup:move P61_Period(a5),6(a4)
+.jup:	move P61_Period(a5),6(a4)
 	bra.w P61_contfxdone
 	endc
 	ifne P61_fvu
@@ -1319,7 +1319,7 @@ P61_finevup2:
 	cmp P61_Volume(a5),d0
 	bge.b .jup
 	move d0,P61_Volume(a5)
-.jup:move P61_Volume(a5),8(a4)
+.jup:	move P61_Volume(a5),8(a4)
 	bra.w P61_contfxdone
 	endc
 	ifne P61_fvd
@@ -1331,7 +1331,7 @@ P61_finevdwn2:
 	sub d0,P61_Volume(a5)
 	bpl.b .jup
 	move d7,P61_Volume(a5)
-.jup:move P61_Volume(a5),8(a4)
+.jup:	move P61_Volume(a5),8(a4)
 	bra.w P61_contfxdone
 	endc
 	ifne P61_nc
@@ -1607,7 +1607,7 @@ P61_contfxdone:
 	cmp P61_speed2(PC),d4
 	bne.w P61_ret2
 P61_preplay2:
-.pr:ifle (channels-splitchans)
+.pr:	ifle (channels-splitchans)
 	printt "splitchans >=channels! Must be less."
 	else
 	moveq #(channels-splitchans)-1,d5
@@ -1615,7 +1615,7 @@ P61_preplay2:
 	bra.w P61_preplay
 	endc
 	else
-CHANCPY:macro
+CHANCPY:	macro
 	movem.l (a0),d0-d4
 	movem.l d0-d4,(a5)
 	ifne P61_ft
@@ -1742,19 +1742,19 @@ P61_proccompS:
 	move.b d1,d0
 	add.b d1,d1
 	bpl.b P61_permexit
-.b6set:bcs.b .bit16
-.bit8:move.b d7,(a5)
+.b6set:	bcs.b .bit16
+.bit8:	move.b d7,(a5)
 	subq.l #3,a5
 	and.w d4,d0
 	move.b d0,P61_TempLen+1(a5)
 	move.b (a0)+,d0
 	move.l a0,P61_ChaPos(a5)
 	sub.l d0,a0
-.jedi1:move.b (a0)+,d0
+.jedi1:	move.b (a0)+,d0
 	moveq #-8,d1
 	and.b d0,d1
 	jmp P61_MyJpt+256(PC,d1.w)
-.bit16:move.b d7,(a5)
+.bit16:	move.b d7,(a5)
 	subq.l #3,a5
 	and.w d4,d0
 	move.b d0,P61_TempLen+1(a5)
@@ -1767,7 +1767,7 @@ P61_proccompS:
 	endc
 	move.l a0,P61_ChaPos(a5)
 	sub.l d0,a0
-.jedi2:move.b (a0)+,d0
+.jedi2:	move.b (a0)+,d0
 	moveq #-8,d1
 	and.b d0,d1
 	jmp P61_MyJpt+256(PC,d1.w)
@@ -2067,19 +2067,19 @@ P61_proccompSB:
 	move.b d1,d0
 	add.b d1,d1
 	bpl.b P61_permexitB
-.b6setB:bcs.b .bit16B
-.bit8B:move.b d7,(a5)
+.b6setB:	bcs.b .bit16B
+.bit8B:	move.b d7,(a5)
 	subq.l #3,a5
 	and.w d4,d0
 	move.b d0,P61_TempLen+1(a5)
 	move.b (a0)+,d0
 	move.l a0,P61_ChaPos(a5)
 	sub.l d0,a0
-.jedi1B:move.b (a0)+,d0
+.jedi1B:	move.b (a0)+,d0
 	moveq #-8,d1
 	and.b d0,d1
 	jmp P61_MyJptB+256(PC,d1.w)
-.bit16B:move.b d7,(a5)
+.bit16B:	move.b d7,(a5)
 	subq.l #3,a5
 	and.w d4,d0
 	move.b d0,P61_TempLen+1(a5)
@@ -2092,7 +2092,7 @@ P61_proccompSB:
 	endc
 	move.l a0,P61_ChaPos(a5)
 	sub.l d0,a0
-.jedi2B:move.b (a0)+,d0
+.jedi2B:	move.b (a0)+,d0
 	moveq #-8,d1
 	and.b d0,d1
 	jmp P61_MyJptB+256(PC,d1.w)
@@ -2320,7 +2320,7 @@ P61_playtimeCont:
 	beq.b .mo
 	lea P61_temp0(pc),a5
 	moveq #channels-1,d5
-.chl:bsr.w P61_preplay
+.chl:	bsr.w P61_preplay
 	ifeq split4
 	lea Channel_Block_Size-3(a5),a5
 	dbf d5,.chl
@@ -2485,13 +2485,13 @@ P61_chansdone:
 	add.b d5,d5
 	bpl.b .noch3
 	move.w d7,$da-C(A6)
-.noch3:add.b d5,d5
+.noch3:	add.b d5,d5
 	bpl.b .noch2
 	move.w d7,$ca-C(A6)
-.noch2:add.b d5,d5
+.noch2:	add.b d5,d5
 	bpl.b .noch1
 	move.w d7,$ba-C(A6)
-.noch1:add.b d5,d5
+.noch1:	add.b d5,d5
 	bpl.b .noch0
 	move.w d7,$aa-C(A6)
 .noch0:
@@ -2500,7 +2500,7 @@ P61_chansdone:
 	ifne visuctrs
 	lea P61_visuctr0+channels*2(PC),a0
 	moveq #channels-1,d5
-.visul:subq.w #2,a0
+.visul:	subq.w #2,a0
 	btst d5,d4
 	beq.s .noctr0
 	move.w d7,(a0)
@@ -2679,7 +2679,7 @@ P61_posjmp:
 	blo.b .e
 	moveq #0,d0
 	endc
-.e:move d0,P61_Pos-P61_cn(a3)
+.e:	move d0,P61_Pos-P61_cn(a3)
 	add.l P61_possibase(pc),d0
 	move.l d0,P61_spos-P61_cn(a3)
 	endc
@@ -2688,7 +2688,7 @@ P61_pattbreak:
 	moveq #64,d0
 	move d0,P61_rowpos-P61_cn(a3)
 	move d7,P61_CRow-P61_cn(a3)
-P61_Bc:move.l P61_spos(pc),a1
+P61_Bc:	move.l P61_spos(pc),a1
 	move.l P61_patternbase(pc),a0
 	addq #1,P61_Pos-P61_cn(a3)
 	move.b (a1)+,d0
@@ -2863,7 +2863,7 @@ P61_finedwn:
 	cmp #856,P61_Period(a5)
 	ble.b .jup
 	move #856,P61_Period(a5)
-.jup:moveq #$7e,d0
+.jup:	moveq #$7e,d0
 	and.b (a5),d0
 	bne.w P61_zample
 	bra.w P61_nocha
@@ -3059,7 +3059,7 @@ P61_vib2:
 	bmi.b .vibneg
 	add d2,d1
 	bra.b P61_vib4
-.vibneg:sub d2,d1
+.vibneg:	sub d2,d1
 P61_vib4:
 	move d1,6(a4)
 	move.b P61_VibCmd(a5),d0
@@ -3293,8 +3293,8 @@ P61_temp3:
 	dcb.b Channel_Block_Size-2,0
 	dc 8
 	ifne split4
-P61_temp0copy:dcb.b P61_Wave+4,0
-P61_temp1copy:dcb.b P61_Wave+4,0
+P61_temp0copy:	dcb.b P61_Wave+4,0
+P61_temp1copy:	dcb.b P61_Wave+4,0
 	endc
 P61_cn:
 	dc 0
@@ -3504,24 +3504,24 @@ P61_timerint:
 P61_InitPos:
 	dc.w 0
 	ifne use1Fx
-P61_PTrig:dc.w 0
+P61_PTrig:	dc.w 0
 	endc
 	ifne nowaveforms
-P61_NewDMA:dc.w 0
+P61_NewDMA:	dc.w 0
 	endc
 	ifne copdma
-p61_DMApokeAddr:dc.l 0
+p61_DMApokeAddr:	dc.l 0
 	endc
-P61_PattFlag:dc.w 0
+P61_PattFlag:	dc.w 0
 P61_etu:
 	ifne quietstart
-P61_Quiet:dc.w 0
+P61_Quiet:	dc.w 0
 	endc
 	ifne visuctrs
-P61_visuctr0:dc.w $4000
-P61_visuctr1:dc.w $4000
-P61_visuctr2:dc.w $4000
-P61_visuctr3:dc.w $4000
+P61_visuctr0:	dc.w $4000
+P61_visuctr1:	dc.w $4000
+P61_visuctr2:	dc.w $4000
+P61_visuctr3:	dc.w $4000
 	endc
 P61E:
 samples:

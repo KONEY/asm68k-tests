@@ -58,7 +58,7 @@ CIAB		EQU	1	;1 = use CIA timers (default)
 ;You have to insert the module name to the INCBIN statement (located near the
 ;end of this file, on line 2052).
 
-EASY		EQU	0
+EASY		EQU	1
 
 ;Call _startmusic to play the music, and _endmusic to stop it (before
 ;exiting). Note: don't call _startmusic twice!! This would cause the module
@@ -3084,7 +3084,7 @@ retamd1:		movem.l	(sp)+,a1-a3/a5
 		rts
 	ENDC
 
-DATA
+DATA:
 DB:		;Data base pointer
 	IFNE	MIDI
 sendbuffer:	ds.b	256

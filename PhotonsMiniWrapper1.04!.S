@@ -33,6 +33,7 @@ Start:
 ;*--- call demo ---*
 
 	movem.l a4-a6,-(sp)
+	;CLR.W	$100		; DEBUG | w 0 100 2
 	jsr Demo			;call our demo \o/
 	movem.l (sp)+,a4-a6
 
