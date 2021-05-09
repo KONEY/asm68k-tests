@@ -29,7 +29,7 @@
 	bne.s	waitmb
 
 	movem.l	d0-d7/a0-a6,-(sp)
-	jsr	_RemPlayer
+	jsr	_endmusic
 	movem.l	(sp)+,d0-d7/a0-a6
 	rts
 

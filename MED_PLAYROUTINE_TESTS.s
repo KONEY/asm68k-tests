@@ -392,7 +392,7 @@ _TXTSCROLLBUF:
 
 BG1:		INCBIN	"BG_METAL2_320256_4.raw"
 MEDMODULE:	INCBIN	"med/octamed_test.med"	;<<<<< MODULE NAME HERE!
-Module1:		INCBIN	"p61_testmod.p61"	; code $9104
+;Module1:		INCBIN	"p61_testmod.p61"		; code $9104
 
 FONT:		DC.L	0,0			; SPACE CHAR
 		INCBIN	"scummfnt_8x752.raw",0
