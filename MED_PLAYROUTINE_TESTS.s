@@ -19,12 +19,10 @@ POS_MID=4
 POS_RIGHT=20
 POS_BOTTOM=122*bpl
 BAND_OFFSET=86*bpl
-
 ;BLITTER CONSTANTS
 bltx	=0
 ;blty	=0
 bltoffs	=210*(w/8)+bltx/8
-
 ;********** Demo **********	; Demo-specific non-startup code below.
 Demo:	;a4=VBR, a6=Custom Registers Base addr
 	;*--- init ---*
@@ -47,12 +45,11 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
 	BSR.W	__CREAPATCH		; FILL THE BUFFER
-	BSR.W	__InitCopperPalette
 	BSR.W	__PRINT2X
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
 
 	;CLR.W	$100		; DEBUG | w 0 100 2
-	; in photon wrapper comment:;move.w d2,$9a(a6) ;INTENA
+	; in photon's wrapper comment:;move.w d2,$9a(a6) ;INTENA
 	jsr	_startmusic
 
 	MOVE.L	#Copper,$80(a6)
@@ -74,18 +71,17 @@ MainLoop:
 	;*--- ...draw into the other(a2) ---*
 	move.l	a2,a1
 	;bsr	ClearScreen
-
 	bsr.w	WaitBlitter
 	MOVE.L	KONEYBG,DrawBuffer
-
 	; do stuff here :)
+
+	;CLR.W	$100			; DEBUG | w 0 100 2
+	MOVE.W	MED_SONG_POS,D0
 
 	BSR.W	__CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
 	BSR.W	__BLITINPLACE		; FIRST BLITTATA
 	BSR.W	__SHIFTTEXT		; SHIFT DATI BUFFER?
 	BSR.W	__POPULATETXTBUFFER	; PUT SOMETHING
-
-	;CLR.W	$100		; DEBUG | w 0 100 2
 
 	;*--- main loop end ---*
 	BTST	#6,$BFE001
@@ -133,17 +129,6 @@ VBint:				; Blank template VERTB interrupt
 	.notvb:	
 	movem.l	(sp)+,d0/a6	; restore
 	rte
-
-__InitCopperPalette:
-	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
-	LEA.L	PALETTEBUFFERED,A2
-	LEA.L	Palette,A3
-	MOVE.L	#15,D0
-	.FillLoop:
-	MOVE.L	(A2)+,(A3)+
-	DBRA	D0,.FillLoop
-	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
-	RTS
 
 __PRINT2X:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
@@ -321,8 +306,6 @@ __POPULATETXTBUFFER:
 	MOVEM.L	(SP)+,D0-D7/A0-A6	; FETCH FROM STACK
 	RTS
 
-	INCLUDE	"med/proplayer.a"
-
 ;********** Fastmem Data **********
 DITHERFRAMEOFFSET:	DC.W 0
 GLITCHER_SRC:	DC.L 0
@@ -333,7 +316,7 @@ AUDIOCHANLEVEL0:	DC.W 0
 AUDIOCHANLEVEL1:	DC.W 0
 AUDIOCHANLEVEL2:	DC.W 0
 AUDIOCHANLEVEL3:	DC.W 0
-FRAMESINDEX:	DC.W	4
+FRAMESINDEX:	DC.W 4
 
 KONEYBG:		DC.L BG1		; INIT BG
 DrawBuffer:	DC.L SCREEN2	; pointers to buffers to be swapped
@@ -350,12 +333,6 @@ DISPLACETABLE:
 	DC.W 2,1,0,1,0,3,0,3,0,0,0,1,2,1,0,0
 	DC.W 0,2,0,0,3,0,0,0,0,1,0,0,0,2,1,4
 
-PALETTEBUFFERED:
-	DC.W $0180,$0000,$0182,$0000,$0184,$0111,$0186,$0122
-	DC.W $0188,$0333,$018A,$0444,$018C,$0555,$018E,$0455
-	DC.W $0190,$0666,$0192,$0888,$0194,$0999,$0196,$0AAA
-	DC.W $0198,$09AA,$019A,$0FFF,$019C,$0FFF,$019E,$0FFF
-
 BUFFEREDCOLOR:	DC.W $0000
 BUFCOLINDEX:	DC.W 6
 BPLCOLORINDEX:	DC.W 6
@@ -368,6 +345,9 @@ PATCH:		DS.B 10*64*bpls	;I need a buffer to save trap BG
 TEXTINDEX:	DC.W 0
 
 ;*******************************************************************************
+	INCLUDE	"med/MED_PlayRoutine.i"
+
+;*******************************************************************************
 	SECTION "ChipData",DATA_C	;declared data that must be in chipmem
 ;*******************************************************************************
 
@@ -377,14 +357,14 @@ TXTSCROLLBUF:	DS.B	(bpl)*8
 _TXTSCROLLBUF:
 
 BG1:		INCBIN	"BG_METAL2_320256_4.raw"
-easymod:		INCBIN	"med/octamed_test.med"	;<<<<< MODULE NAME HERE!
+easymod:		INCBIN	"med/KETAMUSKOLAR.med"	;<<<<< MODULE NAME HERE!
 ;Module1:		INCBIN	"p61_testmod.p61"		; code $9104
 
 FONT:		DC.L	0,0			; SPACE CHAR
 		INCBIN	"scummfnt_8x752.raw",0
 TEXT:
-	DC.B "  OCTAMED ASSEMBLY PLAYROUTINES - JUST SOME TESTS TO GET OCTAMED MUSIC "
-	DC.B "INSIDE INTRO/DEMOS OR ANY OTHER CODE WHICH DIRECTLY BANGS THE AMIGA "
+	DC.B "  OCTAMED ASSEMBLY PLAYROUTINES... AND IT WORKS!!! PROBLEM WAS ON PHOTON'S WRAPPER WHERE INTENA BITS WERE ALL RESET... "
+	DC.B "THIS WORKS INSIDE INTRO/DEMOS OR ANY OTHER CODE WHICH DIRECTLY BANGS THE AMIGA "
 	DC.B "HARDWARE. THIS IS EVEN MORE COMPLICATED THAN I SUSPECTED AND I NEED HELP :)  "
 	DC.B "                                                                  "
 	EVEN
@@ -404,10 +384,10 @@ Copper:
 	DC.W $102,0	;SCROLL REGISTER (AND PLAYFIELD PRI)
 
 Palette:						;Some kind of palette (3 bpls=8 colors)
-	DC.W $0180,0,$0182,0,$0184,0,$0186,0
-	DC.W $0188,0,$018A,0,$018C,0,$018E,0
-	DC.W $0190,0,$0192,0,$0194,0,$0196,0
-	DC.W $0198,0,$019A,0,$019C,0,$019e,0
+	DC.W $0180,$0000,$0182,$0000,$0184,$0111,$0186,$0122
+	DC.W $0188,$0333,$018A,$0444,$018C,$0555,$018E,$0455
+	DC.W $0190,$0666,$0192,$0888,$0194,$0999,$0196,$0AAA
+	DC.W $0198,$09AA,$019A,$0FFF,$019C,$0FFF,$019E,$0FFF
 
 BplPtrs:
 	DC.W $E0,0
@@ -437,7 +417,7 @@ COPPERWAITS:
 	DC.W $0180,$0FFF
 	DC.W $0907,$FFFE
 	DC.W $0180,$0000
-	DC.W $0182,$0333	; SCROLLING TEXT WHITE OFF
+	DC.W $0182,$0000	; SCROLLING TEXT WHITE OFF
 
 	DC.W $FFFF,$FFFE	;magic value to end copperlist
 _Copper:
