@@ -1137,7 +1137,6 @@ plr_linenumset:	cmp.w	numlines-DB(a6),d1 	;advance block?
 plr_chgblock:	tst.b	nxtnoclrln-DB(a6)
 		bne.s	plr_noclrln
 		moveq	#0,d1			;clear line number
-		ADDI.W	#1,MED_SONG_POS		;SAVE POSITION
 plr_noclrln:	tst.w	mmd_pstate(a2)		;play block or play song
 		bpl.w	plr_nonewseq		;play block only...
 		cmp.b	#'2',3(a2)		;MMD2?
@@ -1184,6 +1183,8 @@ plr_noadvseq_b:	cmp.w	msng_songlen(a4),d0	;is this the highest seq number??
 		moveq	#0,d0			;yes: restart song
 plr_notagain_b:	move.b	d0,mmd_pseqnum+1(a2)	;remember new playseq-#
 		lea	msng_playseq(a4),a0	;offset of sequence table
+		MOVE.W	D0,MED_SONG_POS		;SAVE POSITION | KONEY
+		;CLR.W	$100			; DEBUG | w 0 100 2
 		move.b	0(a0,d0.w),d0		;get number of the block
 ; ********* BELOW CODE FOR BOTH FORMATS *********************************
 plr_changeblk:
@@ -1192,7 +1193,7 @@ plr_changeblk:
 		blt.s	plr_nolstblk		;no..
 		moveq	#0,d0			;play block 0 | KONEY
 	ENDC
-plr_nolstblk:	move.w	d0,mmd_pblock(a2)		;store block number | KONEY
+plr_nolstblk:	move.w	d0,mmd_pblock(a2)		;store block number
 plr_nonewseq:	clr.w	nextblock-DB(a6) 		;clear this if F00 set it
 ; ------------------------------------------------------------------------
 plr_nochgblock:	move.w	d1,mmd_pline(a2)		;set new line number
