@@ -33,7 +33,7 @@ CHECK		EQU	1	;1 = do range checkings (track, sample in mem etc.)
 RELVOL		EQU	1	;1 = include relative volume handling code
 IFFMOCT		EQU	0	;1 = play IFF multi-octave samples/ExtSamples correctly
 HOLD		EQU	0	;1 = handle hold/decay
-PLAYMMD0		EQU	0	;1 = play old MMD0 modules
+PLAYMMD0	EQU	0	;1 = play old MMD0 modules
 AURA		EQU	0	;1 = support the Aura sampler
 ;
 ; The less features you include, the faster and shorter the play-routine
@@ -77,14 +77,14 @@ mmd_modlen	EQU	4
 mmd_songinfo	EQU	8
 ; these two for MMD2s only!
 mmd_psecnum	EQU	12
-mmd_pseq		EQU	14
+mmd_pseq	EQU	14
 ;
 mmd_blockarr	EQU	16
 mmd_smplarr	EQU	24
 mmd_expdata	EQU	32
 mmd_pstate	EQU	40 ; <0 = play song, 0 = don't play, >0 = play block
 mmd_pblock	EQU	42
-mmd_pline		EQU	44
+mmd_pline	EQU	44
 mmd_pseqnum	EQU	46
 mmd_counter	EQU	50
 mmd_songsleft	EQU	51
@@ -115,7 +115,7 @@ inst_repeat	EQU	0
 inst_replen	EQU	2
 inst_midich	EQU	4
 inst_midipreset	EQU	5
-inst_svol		EQU	6
+inst_svol	EQU	6
 inst_strans	EQU	7
 
 ; Audio hardware offsets
