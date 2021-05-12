@@ -23,6 +23,7 @@ BAND_OFFSET=86*bpl
 bltx	=0
 ;blty	=0
 bltoffs	=210*(w/8)+bltx/8
+MED_START_POS	EQU	16
 ;********** Demo **********	; Demo-specific non-startup code below.
 Demo:	;a4=VBR, a6=Custom Registers Base addr
 	;*--- init ---*
@@ -44,7 +45,7 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	bsr.w	PokePtrs
 
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
-	BSR.W	__CREAPATCH		; FILL THE BUFFER
+	BSR.W	__CREAPATCH	; FILL THE BUFFER
 	BSR.W	__PRINT2X
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
 

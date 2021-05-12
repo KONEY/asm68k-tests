@@ -33,7 +33,7 @@ CHECK		EQU	1	;1 = do range checkings (track, sample in mem etc.)
 RELVOL		EQU	1	;1 = include relative volume handling code
 IFFMOCT		EQU	0	;1 = play IFF multi-octave samples/ExtSamples correctly
 HOLD		EQU	0	;1 = handle hold/decay
-PLAYMMD0	EQU	0	;1 = play old MMD0 modules
+PLAYMMD0 	EQU	0	;1 = play old MMD0 modules
 AURA		EQU	0	;1 = support the Aura sampler
 ;
 ; The less features you include, the faster and shorter the play-routine
@@ -77,14 +77,14 @@ mmd_modlen	EQU	4
 mmd_songinfo	EQU	8
 ; these two for MMD2s only!
 mmd_psecnum	EQU	12
-mmd_pseq	EQU	14
+mmd_pseq 	EQU	14
 ;
 mmd_blockarr	EQU	16
 mmd_smplarr	EQU	24
 mmd_expdata	EQU	32
 mmd_pstate	EQU	40 ; <0 = play song, 0 = don't play, >0 = play block
 mmd_pblock	EQU	42
-mmd_pline	EQU	44
+mmd_pline 	EQU	44
 mmd_pseqnum	EQU	46
 mmd_counter	EQU	50
 mmd_songsleft	EQU	51
@@ -115,7 +115,7 @@ inst_repeat	EQU	0
 inst_replen	EQU	2
 inst_midich	EQU	4
 inst_midipreset	EQU	5
-inst_svol	EQU	6
+inst_svol 	EQU	6
 inst_strans	EQU	7
 
 ; Audio hardware offsets
@@ -363,7 +363,6 @@ _PlayNote:	;d7(w) = trk #, d1 = note #, d3(w) = instr # a3 = addr of instr
 		move.l	a3,d4
 		beq.s	SO_rts
 		; ## KONEY MOD ##
-		;CLR.W	$100		; DEBUG | w 0 100 2
 		;LEA	MED_TRK_INFO_0,A4
 		;MOVE.W	D3,(A4,D7.W)	; SAVE SMPL# IN RELATIVE TRACK
 		; ## KONEY MOD ##
@@ -375,7 +374,7 @@ _PlayNote:	;d7(w) = trk #, d1 = note #, d3(w) = instr # a3 = addr of instr
 		move.l	0(a0,d3.w),d5	;get address of instrument
 	IFNE	MIDI
 		bne.s	inmem
-		tst.b	inst_midich(a3)		;is MIDI channel set?
+		tst.b	inst_midich(a3)	;is MIDI channel set?
 	ENDC
 	IFNE	CHECK
 		beq.w	pnote_rts		;	 NO!!!
@@ -519,7 +518,7 @@ gid_not_ext:	move.l	d7,-(sp)
 		cmp.w	#6,d7		;if oct > 5, oct = 5
 		blt.s	nohioct
 		moveq	#5,d7
-nohioct:		swap	d5			;note number in this oct (0-11) is in d5
+nohioct:		swap	d5		;note number in this oct (0-11) is in d5
 		move.l	(a0),d1
 		cmp.w	#6,d0
 		ble.s	nounrecit
@@ -754,8 +753,8 @@ hSn_cmdE:		addq.l	#2,a1
 		move.l	#sinetable,(a1)+
 		clr.w	(a1)+
 		movea.l	trk_synthptr(a5),a0
-                move.w	18(a0),(a1)+
-                clr.b	(a1)
+		move.w	18(a0),(a1)+
+		clr.b	(a1)
 		moveq	#64,d4
 		rts
 
@@ -1182,9 +1181,11 @@ plr_noadvseq_b:	cmp.w	msng_songlen(a4),d0	;is this the highest seq number??
 		blt.s	plr_notagain_b		;no.
 		moveq	#0,d0			;yes: restart song
 plr_notagain_b:	move.b	d0,mmd_pseqnum+1(a2)	;remember new playseq-#
-		lea	msng_playseq(a4),a0	;offset of sequence table
-		MOVE.W	D0,MED_SONG_POS		;SAVE POSITION | KONEY
 		;CLR.W	$100			; DEBUG | w 0 100 2
+		CMPI.W	#MED_START_POS,D0		;START_POS REACHED? | KONEY
+		BLO.S	plr_noMMD2_0		;GO INCREMENT AGAIN | KONEY
+		MOVE.W	D0,MED_SONG_POS		;SAVE POSITION | KONEY
+		lea	msng_playseq(a4),a0	;offset of sequence table
 		move.b	0(a0,d0.w),d0		;get number of the block
 ; ********* BELOW CODE FOR BOTH FORMATS *********************************
 plr_changeblk:
@@ -2458,7 +2459,6 @@ resprevpbends:	move.w	#$2000,(a2)+
 
 _InitModule:	movem.l	a2-a3/d2,-(sp)
 		move.l	a0,-(sp)
-		beq	IM_exit			;0 => xit
 	IFNE	RELVOL
 		movea.l	mmd_songinfo(a0),a1	;MMD0song
 		move.b	msng_mastervol(a1),d0	;d0 = mastervol
@@ -2676,20 +2676,22 @@ contpoint:		movem.l	a0/d0,-(sp)
 	IFNE	MIDI
 		clr.b	lastcmdbyte-DB(a6)
 	ENDC
+		;CLR.W	$100
+		;MOVE.W	#16,mmd_pseqnum(A2)	;SET START
 		move.w	_modnum,d1
 		beq.s	PM_modfound
 PM_nextmod:	tst.l	mmd_expdata(a0)
 		beq.s	PM_modfound
 		move.l	mmd_expdata(a0),a1
 		tst.l	(a1)
-		beq.s	PM_modfound			;no more modules here!
+		beq.s	PM_modfound		;no more modules here!
 		move.l	(a1),a0
 		subq.w	#1,d1
 		bgt.s	PM_nextmod
 PM_modfound:	cmp.b	#'T',3(a0)
 		bne.s	PM_nomodT
-		move.b	#'0',3(a0)			;change MCNT to MCN0
-PM_nomodT:	movea.l	mmd_songinfo(a0),a1		;song
+		move.b	#'0',3(a0)		;change MCNT to MCN0
+PM_nomodT:	movea.l	mmd_songinfo(a0),a1	;song
 		move.b	msng_tempo2(a1),mmd_counter(a0)	;init counter
 		btst	#0,msng_flags(a1)
 		bne.s	PM_filon
@@ -2714,6 +2716,7 @@ PM_noclr:		cmp.b	#'2',3(a0)
 		move.w	d1,mmd_pseq(a0)
 		movea.l	msng_pseqs(a1),a2
 		movea.l	0(a2,d1.w),a2		;PlaySeq...
+		;CLR.W	$100			; DEBUG | w 0 100 2
 		move.w	mmd_pseqnum(a0),d1
 		add.w	d1,d1
 		move.w	42(a2,d1.w),d1		;and the correct block..
