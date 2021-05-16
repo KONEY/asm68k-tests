@@ -86,7 +86,7 @@ WaitRaster:			;Wait for scanline d0. Trashes d1.
 AllOff:	
 	move.w #$7fff,d2		;clear all bits
 	move.w d2,$96(a6)		;in DMACON,
-	;move.w d2,$9a(a6)	;INTENA,	; DONT RESET FOR MED PLAYER
+	move.w d2,$9a(a6)	;INTENA,	; DONT RESET FOR MED PLAYER
 IntReqD2:
 	move.w d2,$9c(a6)		;and INTREQ
 	move.w d2,$9c(a6)		;twice for A4000 compatibility

@@ -21,9 +21,7 @@ POS_BOTTOM=122*bpl
 BAND_OFFSET=86*bpl
 ;BLITTER CONSTANTS
 bltx	=0
-;blty	=0
 bltoffs	=210*(w/8)+bltx/8
-MED_START_POS	EQU	16
 ;********** Demo **********	; Demo-specific non-startup code below.
 Demo:	;a4=VBR, a6=Custom Registers Base addr
 	;*--- init ---*
@@ -49,10 +47,6 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	BSR.W	__PRINT2X
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
 
-	;CLR.W	$100		; DEBUG | w 0 100 2
-	; in photon's wrapper comment:;move.w d2,$9a(a6) ;INTENA
-	jsr	_startmusic
-
 	MOVE.L	#Copper,$80(a6)
 
 ;********************  main loop  ********************
@@ -77,12 +71,12 @@ MainLoop:
 	; do stuff here :)
 
 	;CLR.W	$100			; DEBUG | w 0 100 2
-	MOVE.W	MED_SONG_POS,D0
 
-	BSR.W	__CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
-	BSR.W	__BLITINPLACE		; FIRST BLITTATA
-	BSR.W	__SHIFTTEXT		; SHIFT DATI BUFFER?
-	BSR.W	__POPULATETXTBUFFER	; PUT SOMETHING
+	BSR.W	__FILLRNDBG
+	;BSR.W	__CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
+	;BSR.W	__BLITINPLACE		; FIRST BLITTATA
+	;BSR.W	__SHIFTTEXT		; SHIFT DATI BUFFER?
+	;BSR.W	__POPULATETXTBUFFER	; PUT SOMETHING
 
 	;*--- main loop end ---*
 	BTST	#6,$BFE001
@@ -92,10 +86,6 @@ MainLoop:
 	BTST	#2,$DFF016	; POTINP - RMB pressed?
 	BNE.W	MainLoop		; then loop
 	;*--- exit ---*
-	; ---  quit MED code  ---
-	MOVEM.L	D0-A6,-(SP)
-	JSR	_endmusic
-	MOVEM.L	(SP)+,D0-A6
 	RTS
 ;********** Demo Routines **********
 
@@ -307,6 +297,68 @@ __POPULATETXTBUFFER:
 	MOVEM.L	(SP)+,D0-D7/A0-A6	; FETCH FROM STACK
 	RTS
 
+; FILLS A BUFFER WITH RANDOM DATA
+__FILLRNDBG:
+	LEA.L	BG1,A4	; DEST DATA
+	ADD.L	BG_OFFSET,A4
+	TST.W	LOOP_STATUS
+	BEQ.S	.dontResetValues
+	MOVE.W	#bpls-1,BITPLANELOOP_POS
+	MOVE.B	#h-1,OUTERLOOP_POS
+	MOVE.B	#bpl-1,INNERLOOP_POS
+	MOVE.W	#0,LOOP_STATUS
+	MOVE.L	#0,BG_OFFSET
+	LEA.L	BG1,A4
+	.dontResetValues:
+
+	MOVE.W	BITPLANELOOP_POS,D1
+	.BITPLANESLOOP:
+	CLR	D4
+	MOVE.B	OUTERLOOP_POS,D4	; QUANTE LINEE
+	.OUTERLOOP:		; NUOVA RIGA
+	CLR	D6
+	MOVE.B	INNERLOOP_POS,D6	; RESET D6
+	.INNERLOOP:
+	BSR.S	_RandomWord
+	MOVE.B	D5,(A4)+
+	DBRA	D6,.INNERLOOP
+
+	; CHECK RASTER
+	MOVE.W	$DFF006,D7
+	CMP.W	#$FBAA,D7	; read vertical beam
+	BLO.S	.keepLooping
+	MOVE.W	D1,BITPLANELOOP_POS
+	MOVE.B	D4,OUTERLOOP_POS
+	MOVE.B	D6,INNERLOOP_POS
+	MOVE.W	#1,LOOP_STATUS
+	;CLR.W	$100		; DEBUG | w 0 100 2
+	ADD.L	#1,A4
+	BRA.S	.exitLoop
+	.keepLooping:
+
+	DBRA	D4,.OUTERLOOP
+	DBRA	D1,.BITPLANESLOOP
+	MOVE.W	#0,LOOP_STATUS
+
+	.exitLoop:
+	;MOVE.W	#$FF0,$DFF180	; show rastertime left down to $12c
+	RTS
+	_RandomWord:	
+	bsr	_RandomByte
+	rol.w	#8,d5
+	_RandomByte:
+	move.b	$dff007,d5	;$dff00a $dff00b for mouse pos
+	move.b	$bfd800,d3
+	eor.b	d3,d5
+	rts
+
+BITPLANELOOP_POS:	DC.W bpls-1
+OUTERLOOP_POS:	DC.B h-1
+INNERLOOP_POS:	DC.B bpl-1
+LOOP_STATUS:	DC.W 0
+BG_POINTER:	DC.L BG1
+BG_OFFSET:	DC.L 0
+
 ;********** Fastmem Data **********
 DITHERFRAMEOFFSET:	DC.W 0
 GLITCHER_SRC:	DC.L 0
@@ -346,19 +398,14 @@ PATCH:		DS.B 10*64*bpls	;I need a buffer to save trap BG
 TEXTINDEX:	DC.W 0
 
 ;*******************************************************************************
-	INCLUDE	"med/MED_PlayRoutine.i"
-
+	SECTION	"ChipData",DATA_C	;declared data that must be in chipmem
 ;*******************************************************************************
-	SECTION "ChipData",DATA_C	;declared data that must be in chipmem
-;*******************************************************************************
-
-KONEY2X:		INCBIN	"koney10x64.raw"
 
 TXTSCROLLBUF:	DS.B	(bpl)*8
 _TXTSCROLLBUF:
 
+KONEY2X:		INCBIN	"koney10x64.raw"
 BG1:		INCBIN	"BG_METAL2_320256_4.raw"
-easymod:		INCBIN	"med/KETAMUSKOLAR.med"	;<<<<< MODULE NAME HERE!
 ;Module1:		INCBIN	"p61_testmod.p61"		; code $9104
 
 FONT:		DC.L	0,0			; SPACE CHAR
@@ -406,19 +453,19 @@ BplPtrs:
 	DC.W $100,BPLS*$1000+$200	;enable bitplanes
 
 COPPERWAITS:
-	DC.W $FE07,$FFFE
-	DC.W $0180,$0FFF
-	DC.W $FF07,$FFFE
-	DC.W $0180,$0011	; SCROLLAREA BG COLOR
-	DC.W $0182,$0AAA	; SCROLLING TEXT WHITE ON
+	;DC.W $FE07,$FFFE
+	;DC.W $0180,$0FFF
+	;DC.W $FF07,$FFFE
+	;DC.W $0180,$0011	; SCROLLAREA BG COLOR
+	;DC.W $0182,$0AAA	; SCROLLING TEXT WHITE ON
 
-	DC.W $FFDF,$FFFE	; allow VPOS>$ff
+	;DC.W $FFDF,$FFFE	; allow VPOS>$ff
 
-	DC.W $0807,$FFFE
-	DC.W $0180,$0FFF
-	DC.W $0907,$FFFE
-	DC.W $0180,$0000
-	DC.W $0182,$0000	; SCROLLING TEXT WHITE OFF
+	;DC.W $0807,$FFFE
+	;DC.W $0180,$0FFF
+	;DC.W $0907,$FFFE
+	;DC.W $0180,$0000
+	;DC.W $0182,$0000	; SCROLLING TEXT WHITE OFF
 
 	DC.W $FFFF,$FFFE	;magic value to end copperlist
 _Copper:
