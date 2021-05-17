@@ -38,16 +38,17 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	;*--- start copper ---*
 	lea	Screen1,a0
 	moveq	#bpl,d0
-	lea	BplPtrs+2,a1
+	lea	COPPER\.BplPtrs+2,a1
 	moveq	#bpls-1,d1
 	bsr.w	PokePtrs
 
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
-	BSR.W	__CREAPATCH	; FILL THE BUFFER
+	BSR.W	__GENERATE_COPPERLIST
+	;BSR.W	__CREAPATCH	; FILL THE BUFFER
 	BSR.W	__PRINT2X
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
 
-	MOVE.L	#Copper,$80(a6)
+	MOVE.L	#COPPER,$80(a6)
 
 ;********************  main loop  ********************
 MainLoop:
@@ -60,7 +61,7 @@ MainLoop:
 	;*--- show one... ---*
 	move.l	a3,a0
 	move.l	#bpl*256,d0
-	lea	BplPtrs+2,a1
+	lea	COPPER\.BplPtrs+2,a1
 	moveq	#bpls-1,d1
 	bsr.w	PokePtrs
 	;*--- ...draw into the other(a2) ---*
@@ -70,13 +71,10 @@ MainLoop:
 	MOVE.L	KONEYBG,DrawBuffer
 	; do stuff here :)
 
-	;CLR.W	$100			; DEBUG | w 0 100 2
-
-	BSR.W	__FILLRNDBG
-	;BSR.W	__CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
-	;BSR.W	__BLITINPLACE		; FIRST BLITTATA
-	;BSR.W	__SHIFTTEXT		; SHIFT DATI BUFFER?
-	;BSR.W	__POPULATETXTBUFFER	; PUT SOMETHING
+	BSR.W	__CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
+	BSR.W	__BLITINPLACE		; FIRST BLITTATA
+	BSR.W	__SHIFTTEXT		; SHIFT DATI BUFFER?
+	BSR.W	__POPULATETXTBUFFER	; PUT SOMETHING
 
 	;*--- main loop end ---*
 	BTST	#6,$BFE001
@@ -123,7 +121,7 @@ VBint:				; Blank template VERTB interrupt
 
 __PRINT2X:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
-	MOVEQ	#bpls-1,D1	; UGUALI PER TUTTI I BITPLANE
+	MOVEQ	#bpls-3,D1	; UGUALI PER TUTTI I BITPLANE
 	MOVE.L	KONEYBG,A4
 	LEA	DISPLACETABLE,A3
 	LEA	PATCH,A0
@@ -297,64 +295,54 @@ __POPULATETXTBUFFER:
 	MOVEM.L	(SP)+,D0-D7/A0-A6	; FETCH FROM STACK
 	RTS
 
-; FILLS A BUFFER WITH RANDOM DATA
-__FILLRNDBG:
-	TST.W	LOOP_STATUS
-	BNE.S	.dontResetValues
-	MOVE.W	#((bpls-1)*h)-1,MAINLOOP_POS
-	;MOVE.W	#0,LOOP_STATUS
-	MOVE.L	#BG1,BG_POINTER
-	.dontResetValues:
+__GENERATE_COPPERLIST:
+	MOVEM.L	D0-D7/A0-A6,-(SP)	; SAVE TO STACK
+	MOVE.B	#$2C,D0		; FIRST WAIT
+	MOVE.W	#$0180,D1		; WHICH COLOR
+	MOVE.W	#$0000,D2	; WHICH SHADE
+	MOVE.W	#$0111,D3		; DARKNER
+	MOVE.W	#32-1,D4		; HOW MANY
+	MOVE.B	#9,D5		; HEIGHT
+	LEA	COPPER\.Waits,A1	; TARGET
+	.loop:
+	MOVE.W	D0,D6
+	ROL.W	#8,D6
+	OR.W	#$0001,D6
+	MOVE.W	D6,(A1)+
+	MOVE.W	#$FF00,(A1)+
+	MOVE.W	D1,(A1)+
+	MOVE.W	D2,(A1)+
 
-	MOVE.L	BG_POINTER,A4	; DEST DATA
-	MOVE.W	MAINLOOP_POS,D1
-	.MAINLOOP:
-	CLR	D6
-	MOVE.B	#bpl-1,D6		; RESET D6
-	.INNERLOOP:
-	BSR.S	_RandomWord
-	EOR.W	D6,D5
-	MOVE.B	D5,(A4)+
-	DBRA	D6,.INNERLOOP
+	CMP.B	#$FE,D0
+	BNE.S	.dontResetVPOS	; TO-DO: CALCULATE VALUE
+	MOVE.W	#$FFDF,(A1)+	; allow VPOS>$ff
+	MOVE.W	#$FFFE,(A1)+	; allow VPOS>$ff
+	MOVE.B	#$7,D0		; TO-DO: CALCULATE VALUE
+	BRA.S	.dontAdd
+	.dontResetVPOS:
 
-	; CHECK RASTER
-	;BRA.S	.keepLooping
-	MOVE.W	$DFF006,D7
-	;CLR.W	$100		; DEBUG | w 0 100 2
-	CMP.W	#$CFFF,D7	; read vertical beam
-	BLO.S	.keepLooping
-	SUBI.W	#1,D1
-	MOVE.W	D1,MAINLOOP_POS
-	MOVE.W	#1,LOOP_STATUS
-	;CLR.W	$100		; DEBUG | w 0 100 2
-	MOVE.L	A4,BG_POINTER
-	BRA.S	.exitLoop
-	.keepLooping:
+	CMP.W	#17,D4		; CENTER OF COPPERLIST
+	BNE.S	.keepIncreasing
+	MOVE.W	#$FEEF,D3
+	ADD.W	#3,D0		; CENTER A BIT THICKER
+	.keepIncreasing:
 
-	MOVE.W	#0,LOOP_STATUS
-	DBRA	D1,.MAINLOOP
+	CLR.W	$100		; DEBUG | w 0 100 2
+	CMP.W	#3,D4
+	BNE.S	.dontResetDarkner
+	MOVE.W	#$0000,D3
+	.dontResetDarkner:
 
-	.exitLoop:
-	;MOVE.W	#$FF0,$DFF180	; show rastertime left down to $12c
+	ADD.B	D5,D0
+	.dontAdd:
+	ADD.W	D3,D2
+
+
+	DBRA	D4,.loop
+	MOVEM.L	(SP)+,D0-D7/A0-A6	; FETCH FROM STACK
 	RTS
-	_RandomWord:	
-	bsr	_RandomByte
-	rol.w	#8,d5
-	_RandomByte:
-	move.b	$dff007,d5	;$dff00a $dff00b for mouse pos
-	move.b	$bfd800,d3
-	eor.b	d3,d5
-	rts
-
-MAINLOOP_POS:	DC.W ((bpls-1)*h)-1
-LOOP_STATUS:	DC.W 0
-BG_POINTER:	DC.L BG1
 
 ;********** Fastmem Data **********
-DITHERFRAMEOFFSET:	DC.W 0
-GLITCHER_SRC:	DC.L 0
-GLITCHER_DEST:	DC.L 0
-GLITCHER_DPH:	DC.L 0
 
 AUDIOCHANLEVEL0:	DC.W 0
 AUDIOCHANLEVEL1:	DC.W 0
@@ -389,9 +377,8 @@ PATCH:		DS.B 10*64*bpls	;I need a buffer to save trap BG
 TEXTINDEX:	DC.W 0
 
 TEXT:
-	DC.B "  OCTAMED ASSEMBLY PLAYROUTINES... AND IT WORKS!!! PROBLEM WAS ON PHOTON'S WRAPPER WHERE INTENA BITS WERE ALL RESET... "
-	DC.B "THIS WORKS INSIDE INTRO/DEMOS OR ANY OTHER CODE WHICH DIRECTLY BANGS THE AMIGA "
-	DC.B "HARDWARE. THIS IS EVEN MORE COMPLICATED THAN I SUSPECTED AND I NEED HELP :)  "
+	DC.B " SOME TESTS WITH DYNAMIC COPPERLIST - NEED TO FIGURE OUT HOW TO ANIMATE IT "
+	DC.B " BUT FIRST HORIZONTAL WAITS!! "
 	DC.B "                                                                  "
 	EVEN
 _TEXT:
@@ -404,14 +391,11 @@ TXTSCROLLBUF:	DS.B	(bpl)*8
 _TXTSCROLLBUF:
 
 KONEY2X:		INCBIN	"koney10x64.raw"
-BG1:		INCBIN	"BG_METAL2_320256_4.raw"
-;Module1:		INCBIN	"p61_testmod.p61"		; code $9104
-
+;BG1:		INCBIN	"BG_METAL2_320256_4.raw"
 FONT:		DC.L	0,0			; SPACE CHAR
 		INCBIN	"scummfnt_8x752.raw",0
 
-
-Copper:
+COPPER:
 	DC.W $1FC,0	;Slow fetch mode, remove if AGA demo.
 	DC.W $8E,$2C81	;238h display window top, left
 	DC.W $90,$2CC1	;and bottom, right.
@@ -424,13 +408,13 @@ Copper:
 
 	DC.W $102,0	;SCROLL REGISTER (AND PLAYFIELD PRI)
 
-Palette:						;Some kind of palette (3 bpls=8 colors)
+	.Palette:			;Some kind of palette (3 bpls=8 colors)
 	DC.W $0180,$0000,$0182,$0111,$0184,$0222,$0186,$0233
 	DC.W $0188,$0333,$018A,$0444,$018C,$0555,$018E,$0455
 	DC.W $0190,$0666,$0192,$0888,$0194,$0999,$0196,$0AAA
 	DC.W $0198,$09AA,$019A,$0FFF,$019C,$0FFF,$019E,$0FFF
 
-BplPtrs:
+	.BplPtrs:
 	DC.W $E0,0
 	DC.W $E2,0
 	DC.W $E4,0
@@ -445,23 +429,17 @@ BplPtrs:
 	DC.W $F6,0		;full 6 ptrs, in case you increase bpls
 	DC.W $100,BPLS*$1000+$200	;enable bitplanes
 
-COPPERWAITS:
-	;DC.W $FE07,$FFFE
-	;DC.W $0180,$0FFF
-	;DC.W $FF07,$FFFE
-	;DC.W $0180,$0011	; SCROLLAREA BG COLOR
-	;DC.W $0182,$0AAA	; SCROLLING TEXT WHITE ON
+	.Waits:
+	DS.W 33*4
+	;DS.W 1			;DC.W $FFDF,$FFFE	; allow VPOS>$ff
+	;DC.W $2C01,$FF00		; ## START ##
+	;DC.W $0180,$0FFF		; WHITE
+
 
 	;DC.W $FFDF,$FFFE	; allow VPOS>$ff
 
-	;DC.W $0807,$FFFE
-	;DC.W $0180,$0FFF
-	;DC.W $0907,$FFFE
-	;DC.W $0180,$0000
-	;DC.W $0182,$0000	; SCROLLING TEXT WHITE OFF
-
 	DC.W $FFFF,$FFFE	;magic value to end copperlist
-_Copper:
+_COPPER:
 
 ;*******************************************************************************
 	SECTION "ChipBuffers",BSS_C	;BSS doesn't count toward exe size
@@ -469,6 +447,6 @@ _Copper:
 
 SCREEN1:		DS.B h*bwid	; Define storage for buffer 1
 SCREEN2:		DS.B h*bwid	; two buffers
-GLITCHBUFFER:	DS.B h*bwid	; some free space for glitch
+BG1:		DS.B h*bwid
 
 	END
