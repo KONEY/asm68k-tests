@@ -103,7 +103,7 @@ MainLoop:
 
 	; do stuff here :)
 
-	CLR.W	$100		; DEBUG | w 0 100 2
+	;CLR.W	$100		; DEBUG | w 0 100 2
 
 	ifne SONG_POSITION_JUMP
 	;---  change position  ---
@@ -243,10 +243,19 @@ _SONG_POSITION_EVENTS:
 
 	;*--- main loop end ---*
 
+	; # CODE FOR BUTTON PRESS ##
 	BTST	#6,$BFE001
 	BNE.S	.DontShowRasterTime
+	TST.W	LMBUTTON_STATUS
+	BNE.S	.DontShowRasterTime
+	MOVE.W	#1,LMBUTTON_STATUS
 	MOVE.W	#$FF0,$180(A6)	; show rastertime left down to $12c
 	.DontShowRasterTime:
+	BTST	#6,$BFE001
+	BEQ.S	.DontResetStatus
+	MOVE.W	#0,LMBUTTON_STATUS
+	.DontResetStatus:
+
 	BTST	#2,$DFF016	; POTINP - RMB pressed?
 	BNE.W	MainLoop		; then loop
 	;*--- exit ---*
@@ -694,6 +703,7 @@ __BLIT_GLITCH_PLANE:
 	RTS
 
 ;********** Fastmem Data **********
+LMBUTTON_STATUS:	DC.W 0
 DITHERFRAMEOFFSET:	DC.W 0
 GLITCHER_SRC:	DC.L 0
 GLITCHER_DEST:	DC.L 0
