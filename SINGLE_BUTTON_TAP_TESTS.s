@@ -597,7 +597,6 @@ SPRITE_Y:		DC.W 0	; qui viene memorizzata la Y dello sprite
 SPRITE_X:		DC.W 0	; qui viene memorizzata la X dello sprite
 MOUSE_Y:		DC.B 0	; qui viene memorizzata la Y del mouse
 MOUSE_X:		DC.B 0	; qui viene memorizzata la X del mouse
-MOUSE_OLD:	DC.W 0
 LMBUTTON_STATUS:	DC.W 0
 DITHERFRAMEOFFSET:	DC.W 0
 GLITCHER_SRC:	DC.L 0
