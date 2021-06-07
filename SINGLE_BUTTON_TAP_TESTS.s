@@ -35,7 +35,7 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	;** SOMETHING INSIDE HERE IS NEEDED TO MAKE MOD PLAY! **
 	;move.w	#%1110000000000000,INTENA	; Master and lev6	; NO COPPER-IRQ!
 
-	move.w	#$87c0,DMACON
+	MOVE.W	#%1000011111100000,DMACON
 	;*--- clear screens ---*
 	lea	Screen1,a1
 	bsr.w	ClearScreen
@@ -45,7 +45,7 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	;*--- start copper ---*
 	lea	Screen1,a0
 	moveq	#bpl,d0
-	lea	BplPtrs+2,a1
+	lea	Copper\.BplPtrs+2,a1
 	moveq	#bpls-1,d1
 	bsr.w	PokePtrs
 
@@ -65,20 +65,13 @@ Demo:	;a4=VBR, a6=Custom Registers Base addr
 	;BSR.W	__CREATESCROLLSPACE	; NOW WE USE THE BLITTER HERE!
 
 	BSR.W	__InitCopperPalette
+	LEA	Copper\.SpritePointers,A1	; Puntatori in copperlist
+	BSR.W	__POKE_SPRITE_POINTERS
+	move.b	$DFF00A,MOUSE_Y
+	move.b	$DFF00B,MOUSE_X
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
 
-	;---  Call P61_Init  ---
-	MOVEM.L	D0-A6,-(SP)
-	;lea	Module1,a0
-	sub.l	a1,a1
-	sub.l	a2,a2
-	moveq	#0,d0
-	;MOVE.W	#20,P61_InitPos	; TRACK START OFFSET
-	;jsr	P61_Init
-	MOVEM.L (SP)+,D0-A6
-
 	MOVE.L	#Copper,$80(a6)
-
 ;********************  main loop  ********************
 MainLoop:
 	move.w	#$12c,d0		;No buffering, so wait until raster
@@ -90,156 +83,29 @@ MainLoop:
 	;*--- show one... ---*
 	move.l	a3,a0
 	move.l	#bpl*256,d0
-	lea	BplPtrs+2,a1
+	lea	Copper\.BplPtrs+2,a1
 	moveq	#bpls-1,d1
 	bsr.w	PokePtrs
 	;*--- ...draw into the other(a2) ---*
 	move.l	a2,a1
 	;bsr	ClearScreen
-
 	bsr	WaitBlitter
-	BSR.W	__SET_PT_VISUALS
 	MOVE.L	KONEYBG,DrawBuffer
 
 	; do stuff here :)
 
-	;CLR.W	$100		; DEBUG | w 0 100 2
+	BSR.W	LeggiMouse	; questa legge il mouse
+	MOVE.W	SPRITE_Y(PC),D0	; prepara i parametri per la routine
+	MOVE.W	SPRITE_X(PC),D1	; universale
+	LEA	SPRT_K,A1	; indirizzo sprite
+	MOVEQ	#16,D2		; altezza sprite
+	BSR.W	UniMuoviSprite	; chiama la routine universale
 
-	ifne SONG_POSITION_JUMP
-	;---  change position  ---
-	MOVE.W	P61_Pos,D5
-	CMP.W	#1,D5		; seqeunce block position
-	BNE.S	.dontJump	; then switch
-	MOVEM.L	D0-A6,-(SP)
-	MOVE.W	#$0FF,$180(A6)	; show rastertime left down to $12c
-	;MOVE.W	#14-1,P61_LAST_POS	; RESET POSITION COUNTER
-	CLR.L	D0
-	MOVEQ	#SONG_POSITION_JUMP,D0
-	JSR	P61_SetPosition
-	;MOVE.W	#SONG_POSITION_JUMP,P61_Pos	; FORCE NEW POSITION
-	MOVEM.L (SP)+,D0-A6
-	.dontJump:
-	endc
-
-SONG_POSITION_EVENTS:
-	;* FOR TIMED EVENTS ON SELECTED FRAME ****
-	MOVE.W	P61_Pos,D5
-	CMP.W	P61_LAST_POS,D5
-	BNE.S	.dontReset
-	MOVE.W	#0,P61_FRAMECOUNT
-	ADD.W	#1,P61_LAST_POS
-	.dontReset:
-	MOVE.W	P61_FRAMECOUNT,D4
-	ADD.W	#1,D4
-	MOVE.W	D4,P61_FRAMECOUNT
-
-	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
-	CMPI.W	#5,D5		; SONG POSITION
-	BNE.S	.doNothing0
-	CMPI.W	#200,D4		; BEATS * 14frames
-	BNE.S	.doNothing0
-	ADD.L	#bpl*h,KONEYBG	; SCROLL 1SCREEN UP
-	BSR.W	__CREAPATCH	; FILL THE BUFFER
-	BSR.W	__CREATESCROLLSPACE; NOW WE USE THE BLITTER HERE!
-	.doNothing0:
-	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
-	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
-	CMPI.W	#15,D5		; SONG POSITION
-	BNE.S	.doNothing1
-	CMPI.W	#1,D4		; BEATS * 14frames
-	BNE.S	.doNothing1
-	ADD.L	#bpl*h,KONEYBG	; SCROLL 1SCREEN UP
-	BSR.W	__CREAPATCH	; FILL THE BUFFER
-	BSR.W	__CREATESCROLLSPACE; NOW WE USE THE BLITTER HERE!
-	.doNothing1:
-	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
-	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
-	CMPI.W	#25,D5		; SONG POSITION
-	BNE.S	.doNothing2
-	CMPI.W	#1,D4		; BEATS * 14frames
-	BNE.S	.doNothing2
-	ADD.L	#bpl*h,KONEYBG	; SCROLL 1SCREEN UP
-	BSR.W	__CREAPATCH	; FILL THE BUFFER
-	BSR.W	__CREATESCROLLSPACE; NOW WE USE THE BLITTER HERE!
-	.doNothing2:
-	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
-	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
-	CMPI.W	#29,D5		; SONG POSITION
-	BNE.S	.doNothing5
-	CMPI.W	#196,D4		; BEATS * 14frames
-	BNE.S	.doNothing5
-	ADD.L	#bpl*h*2,KONEYBG	; SCROLL 1SCREEN UP
-	BSR.W	__CREAPATCH	; FILL THE BUFFER
-	BSR.W	__CREATESCROLLSPACE; NOW WE USE THE BLITTER HERE!
-	.doNothing5:
-	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
-	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
-	CMPI.W	#32,D5		; SONG POSITION
-	BNE.S	.doNothing3
-	CMPI.W	#1,D4		; BEATS * 14frames
-	BNE.S	.doNothing3
-	ADD.L	#bpl*h,KONEYBG	; SCROLL 1SCREEN UP
-	BSR.W	__CREAPATCH	; FILL THE BUFFER
-	BSR.W	__CREATESCROLLSPACE; NOW WE USE THE BLITTER HERE!
-	.doNothing3:
-	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
-	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
-	CMPI.W	#37,D5		; SONG POSITION
-	BNE.S	.doNothing4
-	CMPI.W	#196,D4		; BEATS * 14frames
-	BNE.S	.doNothing4
-	ADD.L	#bpl*h*2,KONEYBG	; SCROLL 2 SCREEN UP
-	BSR.W	__CREAPATCH	; FILL THE BUFFER
-	BSR.W	__CREATESCROLLSPACE; NOW WE USE THE BLITTER HERE!
-	.doNothing4:
-	; THIS PART IS REPEATED FOR EVERY POSITION WE WANT TO TRIG SOMETHING
-	;* FOR TIMED EVENTS ON SELECTED FRAME ****
-_SONG_POSITION_EVENTS:
-
-	; TRIG BG SCROLL
-	MOVE.W	#0,BGISSHIFTING
-	MOVE.W	P61_Pos,D5
-	CMPI.W	#40,D5		; seqeunce block position TEST 41!!
-	BNE.S	.dontScroll1	; then switch
-	CLR	D5
-	MOVE.W	BGSHIFTOFFSET,D5
-	CMPI.W	#0,D5		; seqeunce block position
-	BEQ.S	.dontScroll1	; then switch
-	MOVE.W	#0,AUDIOCHANLEVEL0	; Stop FXs
-	MOVE.W	#0,AUDIOCHANLEVEL3	; Stop FXs
-	;MOVE.W	#4,P61_visuctr2	; BASS
-	MOVE.W	#2,P61_visuctr1	; KICK
-	MOVE.W	#1,BGISSHIFTING
-	SUB.W	#bpl*h/20,BGSHIFTOFFSET
-	ADD.L	#bpl*h/20,KONEYBG	; SCROLL 1PX UP
-	BSR.W	__CREAPATCH	; FILL THE BUFFER
-	.dontScroll1:
-	; TRIG BG SCROLL
-
-	MOVE.W	AUDIOCHANLEVEL0,D2	; GROOVE 2
-	CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
-	BEQ.S	_noglitch2
-	MOVE.W	#0,AUDIOCHANLEVEL3	; Stop FXs
-	MOVE.W	#0,GLITCHOFFSET	; #10240 for NEXT BTPL
-	BSR.W	__BLIT_GLITCH_PLANE; THIS NEEDS OPTIMIZING
-	_noglitch2:
-
-	MOVE.W	AUDIOCHANLEVEL3,D2	; GROOVE 1
-	CMPI.W	#0,D2		; BEWARE RND ROUTINE WILL RESET D1
-	BEQ.S	_noglitch1
-	MOVE.W	#0,GLITCHOFFSET
-	BSR.W	__DITHERBGPLANE	; THIS NEEDS OPTIMIZING
-	_noglitch1:
-
-	MOVE.W	BGISSHIFTING,D5
-	CMPI.W	#1,D5		; seqeunce block position
-	BEQ.S	.dontPlotObjects	; then switch
 	BSR.W	__PRINT2X
-	MOVE.L	#bpls-1,KONEYLOGO_DPH; RESTORE BITPLANE
-	BSR.W	__BLITINPLACE	; FIRST BLITTATA
-	BSR.W	__SHIFTTEXT	; SHIFT DATI BUFFER?
-	BSR.W	__POPULATETXTBUFFER; PUT SOMETHING
-	.dontPlotObjects:
+	MOVE.L	#bpls-1,KONEYLOGO_DPH	; RESTORE BITPLANE
+	BSR.W	__BLITINPLACE		; FIRST BLITTATA
+	BSR.W	__SHIFTTEXT		; SHIFT DATI BUFFER?
+	BSR.W	__POPULATETXTBUFFER	; PUT SOMETHING
 
 	;*--- main loop end ---*
 
@@ -259,10 +125,6 @@ _SONG_POSITION_EVENTS:
 	BTST	#2,$DFF016	; POTINP - RMB pressed?
 	BNE.W	MainLoop		; then loop
 	;*--- exit ---*
-	;;    ---  Call P61_End  ---
-	MOVEM.L D0-A6,-(SP)
-	JSR P61_End
-	MOVEM.L (SP)+,D0-A6
 	RTS
 
 ;********** Demo Routines **********
@@ -301,13 +163,19 @@ VBint:				; Blank template VERTB interrupt
 __InitCopperPalette:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
 	LEA.L	PALETTEBUFFERED,A2
-	LEA.L	Palette,A3
+	LEA.L	Copper\.Palette,A3
 	MOVE.L	#15,D0
 	.FillLoop:
 	MOVE.L	(A2)+,(A3)+
 	DBRA	D0,.FillLoop
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
+
+__POKE_SPRITE_POINTERS:
+	MOVE.L	#SPRT_K,D0	; sprite 0
+	MOVE.W	D0,6(A1)
+	SWAP	D0
+	MOVE.W	D0,2(A1)
 
 ; THIS ROUTINE WILL POPULATE A GRAPHIC AREA WITH ANY DATA FROM MEMORY
 ; NEEDS 3 PARAMS: SOURCE, TARGET, DEPTH (PLANES)
@@ -356,77 +224,6 @@ _RandomByte:	move.b	$dff007,d5	;$dff00a $dff00b for mouse pos
 		move.b	$bfd800,d3
 		eor.b	d3,d5
 		rts
-
-__SET_PT_VISUALS:
-	; MOD VISUALIZERS *****
-	ifne visuctrs
-	MOVEM.L D0-A6,-(SP)
-
-	; GROOVE 2
-	lea	P61_visuctr0(PC),a0; which channel? 0-3
-	moveq	#14,d0		; maxvalue
-	sub.w	(a0),d0		; -#frames/irqs since instrument trigger
-	bpl.s	.ok0		; below minvalue?
-	moveq	#0,d0		; then set to minvalue
-	.ok0:	
-	MOVE.W	D0,AUDIOCHANLEVEL0	; RESET
-	_ok0:
-
-	LEA	Palette,A1
-	; BASS
-	lea	P61_visuctr2(PC),a0; which channel? 0-3
-	moveq	#15,d0		; maxvalue
-	sub.w	(a0),d0		; -#frames/irqs since instrument trigger
-	bpl.s	.ok2		; below minvalue?
-	moveq	#0,d0		; then set to minvalue
-	.ok2:	
-	MOVE.W	D0,AUDIOCHANLEVEL2	; RESET
-	DIVU.W	#$3,D0		; start from a darker shade
-	MOVE.L	D0,D3
-	ROL.L	#$4,D3		; expand bits to green
-	ADD.L	#2,D3		; makes color a bit geener
-	ADD.L	D3,D0
-	ROL.L	#$4,D3
-	ADD.L	#1,D3		; makes color a bit geener
-	ADD.L	D3,D0		; expand bits to red
-	MOVE.W	D0,6(A1)		; poke WHITE color now
-	_ok2:
-
-	; KICKDRUM
-	lea	P61_visuctr1(PC),a0; which channel? 0-3
-	moveq	#15,d0		; maxvalue
-	sub.w	(a0),d0		; -#frames/irqs since instrument trigger
-	bpl.s	.ok1		; below minvalue?
-	moveq	#0,d0		; then set to minvalue
-	MOVE.W	#$A,BPLCOLORINDEX	; FOR TIMING
-	.ok1:
-	MOVE.W	D0,AUDIOCHANLEVEL1	; RESET
-	;ADD.W	AUDIOCHANLEVEL2,D0	; KICK BRIGHTER IF BASS PLAYS TOO?
-	DIVU.W	#$2,D0		; start from a darker shade
-	ADD.W	#$2,D0		; start from a darker shade
-	MOVE.L	D0,D3
-	ROL.L	#$4,D3		; expand bits to green
-	;ADD.L	#1,D3		; makes color a bit geener
-	ADD.L	D3,D0
-	ROL.L	#$4,D3
-	ADD.L	D3,D0		; expand bits to red
-	MOVE.W	D0,14(A1)		; poke WHITE color now
-	_ok1:
-
-	; GROOVE 1
-	lea	P61_visuctr3(PC),a0; which channel? 0-3
-	moveq	#14,d0		; maxvalue
-	sub.w	(a0),d0		; -#frames/irqs since instrument trigger
-	bpl.s	.ok3		; below minvalue?
-	moveq	#0,d0		; then set to minvalue
-	.ok3:	
-	MOVE.W	D0,AUDIOCHANLEVEL3	; RESET
-	_ok3:
-
-	MOVEM.L (SP)+,D0-A6
-	RTS
-	endc
-	; MOD VISUALIZERS *****
 
 __PRINT2X:
 	MOVEM.L	D0-A6,-(SP)	; SAVE TO STACK
@@ -614,7 +411,7 @@ __CYCLEPALETTE:
 	MOVEM.L	D0-A6,-(SP)		; SAVE TO STACK
 	MOVE.W	BPLCOLORINDEX,D0
 	MOVE.W	BUFCOLINDEX,D2
-	LEA	Palette,A1
+	LEA	Copper\.Palette,A1
 	SUB.W	#4,D0
 	SUB.W	#4,D2
 	MOVE.W	BUFFEREDCOLOR,(A1,D2.W)	; RESTORE OLD COLOR
@@ -702,7 +499,105 @@ __BLIT_GLITCH_PLANE:
 	MOVEM.L	(SP)+,D0-A6	; FETCH FROM STACK
 	RTS
 
+; Questa routine legge il mouse e aggiorna i valori contenuti nelle
+; variabili sprite_x e sprite_y
+LeggiMouse:
+	MOVE.B	$DFF00A,D1	; JOY0DAT posizione verticale mouse
+	MOVE.B	D1,D0		; copia in d0
+	CLR.W	$100		; DEBUG | w 0 100 2
+	SUB.B	MOUSE_Y(PC),D0	; sottrai vecchia posizione mouse
+	BEQ.S	.no_vert		; se la differenza = 0, il mouse e` fermo
+	EXT.W	D0		; trasforma il byte in word
+	ADD.W	D0,SPRITE_Y	; modifica posizione sprite
+	.no_vert:
+	MOVE.B	D1,MOUSE_Y	; salva posizione mouse per la prossima volta
+
+	MOVE.W	SPRITE_Y(PC),D0	; CHECK MOUSE AREA BOUNDARIES
+	CMPI.W	#$FF00,D0
+	BLO.S	.Y_T_ok
+	MOVE.W	#0,SPRITE_Y
+	BRA.S	.Y_B_ok
+	.Y_T_ok:
+
+	CMPI.W	#h-15,D0
+	BLO.S	.Y_B_ok
+	MOVE.W	#h-15,SPRITE_Y
+	.Y_B_ok:
+
+	MOVE.B	$DFF00B,D1	; posizione orizzontale mouse
+	MOVE.B	D1,D0		; copia in d0
+	SUB.B	MOUSE_X(PC),D0	; sottrai vecchia posizione
+	BEQ.S	.no_oriz		; se la differenza = 0, il mouse e` fermo
+	EXT.W	D0		; trasforma il byte in word
+	ADD.W	D0,SPRITE_X	; modifica pos. sprite
+	.no_oriz:
+	MOVE.B	D1,MOUSE_X	; salva posizione mouse per la prossima volta
+
+	MOVE.W	SPRITE_X(PC),D0	; CHECK MOUSE AREA BOUNDARIES
+	CMPI.W	#$FF00,D0
+	BLO.S	.X_T_ok
+	MOVE.W	#0,SPRITE_X
+	BRA.S	.X_B_ok
+	.X_T_ok:
+
+	CMPI.W	#w-15,D0
+	BLO.S	.X_B_ok
+	MOVE.W	#w-15,SPRITE_X
+	.X_B_ok:
+
+	RTS
+
+; Routine universale di posizionamento degli sprite.
+;	Parametri in entrata di UniMuoviSprite:
+;	a1 = Indirizzo dello sprite
+;	d0 = posizione verticale Y dello sprite sullo schermo (0-255)
+;	d1 = posizione orizzontale X dello sprite sullo schermo (0-320)
+;	d2 = altezza dello sprite
+
+UniMuoviSprite:
+	; posizionamento verticale
+	ADD.W	#$2c,d0		; aggiungi l'offset dell'inizio dello schermo
+				; a1 contiene l'indirizzo dello sprite
+	MOVE.b	d0,(a1)		; copia il byte in VSTART
+	btst.l	#8,d0
+	beq.s	.NonVSTARTSET
+	bset.b	#2,3(a1)		; Setta il bit 8 di VSTART (numero > $FF)
+	bra.s	.ToVSTOP
+	.NonVSTARTSET:
+	bclr.b	#2,3(a1)		; Azzera il bit 8 di VSTART (numero < $FF)
+	.ToVSTOP:
+	ADD.w	D2,D0		; Aggiungi l'altezza dello sprite per
+				; determinare la posizione finale (VSTOP)
+	move.b	d0,2(a1)		; Muovi il valore giusto in VSTOP
+	btst.l	#8,d0
+	beq.s	.NonVSTOPSET
+	bset.b	#1,3(a1)		; Setta il bit 8 di VSTOP (numero > $FF)
+	bra.w	.VstopFIN
+	.NonVSTOPSET:
+	bclr.b	#1,3(a1)		; Azzera il bit 8 di VSTOP (numero < $FF)
+	.VstopFIN:
+	; posizionamento orizzontale
+	add.w	#128,D1		; 128 - per centrare lo sprite.
+	btst	#0,D1		; bit basso della coordinata X azzerato?
+	beq.s	.BitBassoZERO
+	bset	#0,3(a1)		; Settiamo il bit basso di HSTART
+	bra.s	.PlaceCoords
+	.BitBassoZERO:
+	bclr	#0,3(a1)		; Azzeriamo il bit basso di HSTART
+	.PlaceCoords:
+	lsr.w	#1,D1		; SHIFTIAMO, ossia spostiamo di 1 bit a destra
+				; il valore di HSTART, per "trasformarlo" nel
+				; valore fa porre nel byte HSTART, senza cioe'
+				; il bit basso.
+	move.b	D1,1(a1)		; Poniamo il valore XX nel byte HSTART
+	RTS
+
 ;********** Fastmem Data **********
+SPRITE_Y:		DC.W 0	; qui viene memorizzata la Y dello sprite
+SPRITE_X:		DC.W 0	; qui viene memorizzata la X dello sprite
+MOUSE_Y:		DC.B 0	; qui viene memorizzata la Y del mouse
+MOUSE_X:		DC.B 0	; qui viene memorizzata la X del mouse
+MOUSE_OLD:	DC.W 0
 LMBUTTON_STATUS:	DC.W 0
 DITHERFRAMEOFFSET:	DC.W 0
 GLITCHER_SRC:	DC.L 0
@@ -798,6 +693,18 @@ POS16_REACHED:	DC.B 0
 	SECTION	ChipData,DATA_C	;declared data that must be in chipmem
 	;*******************************************************************************
 
+SPRT_K:	
+	DC.B	$50	; Posizione verticale di inizio sprite (da $2c a $f2)
+	DC.B	$90	; Posizione orizzontale di inizio sprite $44
+	DC.B	$60	; $50+13=$5d	; posizione verticale di fine sprite
+	DC.B	$00
+	DC.W	$E00E,$E00E,$E00E,$E00E,$E00E,$E00E
+	DC.W	$E070,$E070,$E070,$E070,$E070,$E070
+	DC.W	$FF80,$FF80,$FF80,$FF80,$FF80,$FF80
+	DC.W	$FC70,$FC70,$FC70,$FC70,$FC70,$FC70
+	DC.W	$FC0E,$FC0E,$FC0E,$FC0E,$FC0E,$FC0E
+	DC.W	0,0	; 2 word azzerate definiscono la fine dello sprite.
+
 KONEY2X:	INCBIN	"koney10x64.raw"
 
 TXTSCROLLBUF:	DS.B (bpl)*9
@@ -845,16 +752,15 @@ Copper:
 	DC.W $106,$0C00	;(AGA compat. if any Dual Playf. mode)
 	DC.W $108,0	;bwid-bpl	;modulos
 	DC.W $10A,0	;bwid-bpl	;RISULTATO = 80 ?
-
 	DC.W $102,0	;SCROLL REGISTER (AND PLAYFIELD PRI)
 
-Palette:	;Some kind of palette (3 bpls=8 colors)
+	.Palette:	;Some kind of palette (3 bpls=8 colors)
 	DC.W $0180,0,$0182,0,$0184,0,$0186,0
 	DC.W $0188,0,$018A,0,$018C,0,$018E,0
 	DC.W $0190,0,$0192,0,$0194,0,$0196,0
 	DC.W $0198,0,$019A,0,$019C,0,$019e,0
 
-BplPtrs:
+	.BplPtrs:
 	DC.W $E0,0
 	DC.W $E2,0
 	DC.W $E4,0
@@ -869,7 +775,39 @@ BplPtrs:
 	DC.W $F6,0		;full 6 ptrs, in case you increase bpls
 	DC.W $100,BPLS*$1000+$200	;enable bitplanes
 
-COPPERWAITS:
+	.SpritePointers:
+	DC.W $120,0,$122,0 ; 0
+	DC.W $124,0,$126,0 ; 1
+	DC.W $128,0,$12A,0 ; 2
+	DC.W $12C,0,$12E,0 ; 3
+	DC.W $130,0,$132,0 ; 4
+	DC.W $134,0,$136,0 ; 5
+	DC.W $138,0,$13A,0 ; 6
+	DC.W $13C,0,$13E,0 ; 7
+	DC.W $13F,0,$140,0 ; 8
+
+	.SpriteColors:
+	DC.W $1A0,$0F0
+	DC.W $1A2,$00F
+	DC.W $1A4,$F00
+	DC.W $1A6,$0FF
+
+	DC.W $1A8,$000
+	DC.W $1AA,$000
+	DC.W $1AC,$000
+	DC.W $1AE,$000
+
+	DC.W $1B0,$000
+	DC.W $1B2,$000
+	DC.W $1B4,$FFF
+	DC.W $1B6,$000
+
+	DC.W $1B8,$000
+	DC.W $1BA,$000
+	DC.W $1BC,$000
+	DC.W $1BE,$000
+
+	.COPPERWAITS:
 	;DC.W $FE07,$FFFE
 	;DC.W $0180,$0FFF
 	;DC.W $FF07,$FFFE
