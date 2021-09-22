@@ -460,7 +460,7 @@ COPPER:
 
 	DC.W $102,0	;SCROLL REGISTER (AND PLAYFIELD PRI)
 
-	.Palette:			;Some kind of palette (3 bpls=8 colors)
+	.Palette:		;Some kind of palette (3 bpls=8 colors)
 	DC.W $0180,$0000,$0182,$0111,$0184,$0222,$0186,$0233
 	DC.W $0188,$0333,$018A,$0444,$018C,$0555,$018E,$0455
 	DC.W $0190,$0666,$0192,$0888,$0194,$0999,$0196,$0AAA
