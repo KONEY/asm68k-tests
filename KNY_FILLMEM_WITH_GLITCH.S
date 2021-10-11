@@ -110,7 +110,7 @@ PRINT_BG:				; Routine che stampa
 	LEA	BplPtrs,A5	; in a1 mettiamo l'indirizzo dei	; puntatori ai planes della COPPERLIST
 	MOVEQ	#bpls-1,D6	; numero di bitplanes -1 (qua sono 3); per eseguire il ciclo col DBRA
 
-.POINTBP:
+	.POINTBP:
 	bsr	_RandomByte
 	MOVE.B	D5,5(A5)		; copia la word BASSA dell'indirizzo del plane	; nella word giusta nella copperlist
 
