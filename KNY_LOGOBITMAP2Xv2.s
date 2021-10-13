@@ -39,14 +39,14 @@ Demo:				;a4=VBR, a6=Custom Registers Base addr
 	moveq	#bpls-1,d1
 	bsr.w	PokePtrs
 
-	move.l	#Copper,$80(a6)
+	bsr.w	__DBLBMP
 
-	bsr.s	__DBLBMP
+	move.l	#Copper,$80(a6)
 
 ;********************  main loop  ********************
 MainLoop:
 	lea	Screen,a1		;Then, the screen
-	;bsr.s	ClearScreen	;clear, Yoda pls.
+	bsr.s	ClearScreen	;clear, Yoda pls.
 	bsr.s	WaitBlitter	;Wait out blit: we plot to same area
 
 	moveq	#18,d0		;Read 18
@@ -113,11 +113,8 @@ VBint:				;Blank template VERTB interrupt
 ;ViewBuffer:	dc.l Screen
 
 __DBLBMP:
-	lea	Screen,a2
 	LEA	KONEY,A1
 	LEA	KONEY2x,A5
-	ADD.W	#4,A5		; POSITIONING
-	ADD.W	#4,A5		; POSITIONING
 	CLR.L	D6
 	MOVE.W	#$9,D6	; QUANTE BYTE?
 
@@ -141,35 +138,19 @@ __DBLBMP:
 	.NEXT:	
 	DBRA	D7,.LOOP
 	;*****************
-
+	ADD.W	#8,A5		; POSITIONING
 	MOVE.L	D1,(A5)
-
-	SUB.W	#4,A5		; POSITIONING
-	SUB.W	#4,A5		; POSITIONING
-
+	SUB.W	#8,A5		; POSITIONING
 	MOVE.L	D1,(A5)
-	ADD.W	#4,A5		; POSITIONING
-	ADD.W	#4,A5		; POSITIONING
-	ADD.W	#4,A5		; POSITIONING
-	ADD.W	#2,A5		; POSITIONING
-	ADD.W	#2,A5		; POSITIONING
-	ADD.W	#2,A5		; POSITIONING
-	ADD.W	#2,A5		; POSITIONING
-
+	ADD.W	#12,A5		; POSITIONING
 	BTST	#0,D6
 	BEQ.S	.skip
-	SUB.W	#4,A5		; POSITIONING
-	SUB.W	#4,A5		; POSITIONING
-	MOVE.W	D6,(A2)+
-	MOVE.W	#$0FF0,(A2)+
-	;BRA.S	.ciao
+	SUB.W	#8,A5		; POSITIONING
 	.skip:
-
 	DBRA	D6,.DBLBMP
-	.ciao:
 	RTS
 
-PRINT2X:				;Routine che stampa
+PRINT2X:				; Routine che stampa
 	MOVE.L	#KONEY2X,A5
 	CLR	D6		; RESET D6
 	MOVE.B	#9,D6			
