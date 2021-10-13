@@ -1,0 +1,5 @@
+
+	SECTION data,DATA
+myData:
+
+	dc.l	$45f7df6c,$49145038,$71965f10,$69965818,$65f65f18
