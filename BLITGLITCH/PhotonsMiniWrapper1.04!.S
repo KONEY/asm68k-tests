@@ -1,5 +1,4 @@
-    *** MiniWrapper by Photon ***
-
+	;*** MiniWrapper by Photon ***
 Start:	
 	move.l 4.w,a6		;Exec library base address in a6
 	sub.l a4,a4
@@ -7,9 +6,8 @@ Start:
 	beq.s .yes68k
 	lea .GetVBR(PC),a5		;else fetch vector base address to a4:
 	jsr -30(a6)		;enter Supervisor mode
-    *--- save view+coppers ---*
-
-.yes68k:
+	;*--- save view+coppers ---*
+	.yes68k:
 	MOVE.L $78.W,A4		; or $6c(a0) with a0=vbrbase BY KONEY
 	lea .GfxLib(PC),a1		;either way return to here and open
 	jsr -408(a6)		;graphics library
@@ -21,24 +19,22 @@ Start:
 	move.l 34(a6),-(sp)
 	sub.l a1,a1		;blank screen to trigger screen switch
 	jsr -222(a6)		;on Amigas with graphics cards
-
-    *--- save int+dma ---*
+	;*--- save int+dma ---*
 
 	lea $dff000,a6
 	bsr.s WaitEOF		;wait out the current frame
 	move.l $1c(a6),-(sp)	;save intena+intreq
-	move.w 2(a6),-(sp)	;and dma
+	move.w 2(a6),-(sp)		;and dma
 	move.l $6c(a4),-(sp)	;and also the VB int vector for sport.
 	bsr.s AllOff		;turn off all interrupts+DMA
 
-    *--- call demo ---*
+	;*--- call demo ---*
 
 	movem.l a4-a6,-(sp)
 	bsr.w Demo		;call our demo \o/
 	movem.l (sp)+,a4-a6
 
-    *--- restore all ---*
-
+	;*--- restore all ---*
 	bsr.s WaitEOF		;wait out the demo's last frame
 	bsr.s AllOff		;turn off all interrupts+DMA
 	move.l (sp)+,$6c(a4)	;restore VB vector
@@ -56,7 +52,7 @@ Start:
 	move.l (sp)+,a1
 	jsr -222(a6)		;restore OS screen
 
-    *--- close lib+exit ---*
+	;*--- close lib+exit ---*
 
 	move.l a6,a1		;close graphics library
 	move.l 4.w,a6
@@ -76,12 +72,12 @@ WaitEOF:				;wait for end of frame
 	bsr.s WaitBlitter
 	move.w #$138,d0
 WaitRaster:			;Wait for scanline d0. Trashes d1.
-.l:	
+	.loop:
 	move.l 4(a6),d1
 	lsr.l #1,d1
 	lsr.w #7,d1
 	cmp.w d0,d1
-	bne.s .l			;wait until it matches (eq)
+	bne.s .loop		;wait until it matches (eq)
 	rts
 
 AllOff:	
@@ -95,7 +91,7 @@ IntReqD2:
 
 WaitBlitter:			;wait until blitter is finished
 	tst.w (a6)		;for compatibility with A1000
-.loop:	
+	.loop:	
 	btst #6,2(a6)
 	bne.s .loop
 	rts
