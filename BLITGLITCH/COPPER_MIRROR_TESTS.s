@@ -41,43 +41,31 @@ Demo:			;a4=VBR, a6=Custom Registers Base addr
 	BSR	WaitBlitter
 	;*--- start copper ---*
 	LEA	BGPLANE0,A0
-	MOVEQ	#bypl,D0
 	LEA	COPPER\.BplPtrs,A1
-	MOVEQ	#bpls-1,D1
 	BSR.W	PokePtrs
 
-	LEA	MODULE,A0
-	;MOVEQ	#bypl,D0
-	;LEA	COPPER\.BplPtrsWaits+2+4,A1
-	MOVEQ	#bpls-1,D1
+	LEA	DITHERPLANE,A0
+	LEA	COPPER\.BplPtrs+8,A1
 	BSR.W	PokePtrs
 
 	IFNE	COP_Y_MIRROR
 	; #### POPULATE COPPER WAITS ####
-	MOVE.W	#he/2-1,D7		; HOM MANY LINES
-	MOVE.B	#$AE,D6			; STARTING WAITPOS
-	LEA	BGPLANE0+he/2*bypl,A0
 	LEA	COPPER\.BplPtrsWaits,A1
+	LEA	BGPLANE0+he/2/2*bypl,A0
 
-	.loop:
-	CMP.B	#$FF,D6
-	BNE.S	.notFF
-	MOVE.B	#$00,D6
-	MOVE.L	#$FFDFFFFE,(A1)+		; allow VPOS>$ff
-	.notFF:
+	MOVE.W	#he/2/2-1,D7		; HOM MANY LINES
+	MOVE.B	#$6E,D6			; STARTING WAITPOS #$AE
+	BSR.W	__POPULATE_COPPER_MIRROR
 
-	MOVE.L	#$0001FF00,(A1)
-	MOVE.B	D6,(A1)			; WAIT LINE
-	;MOVE.L	#$00E00000,(A1)		; ACTUAL REGISTERS
-	MOVE.L	#$00E20000,4(A1)		; ACTUAL REGISTERS
-	MOVE.W	A0,6(A1)			; ONLY LOW WORD
-
-	LEA	8(A1),A1			; NEXT GROUP
-	LEA	((bypl*-1),A0),A0		; PREVIOUS LINE
-	ADD.B	#1,D6			; INC. WAITLINE
-	DBRA	D7,.loop
+	LEA	BGPLANE0+he/2/2*bypl,A0
+	MOVE.W	#he/2/2-1,D7		; HOM MANY LINES
+	;MOVE.B	#$AE,D6			; STARTING WAITPOS
+	MOVE.B	#$EE,D6			; STARTING WAITPOS
+	BSR.W	__POPULATE_COPPER_MIRROR
 	; #### POPULATE COPPER WAITS ####
 	ENDC
+
+	BSR.W	__DEFRAG_COPPER
 
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
 	MOVE.L	KICKSTART_ADDR,A3
@@ -86,6 +74,9 @@ Demo:			;a4=VBR, a6=Custom Registers Base addr
 	LEA	X_TEXTURE_MIRROR,A3		; FILLS A PLANE
 	LEA	X_TEXTURE_MIRROR,A4		; FILLS A PLANE
 	BSR.W	__MIRROR_PLANE
+	MOVE.L	#DITHERPLANE,A4		; FILLS A PLANE
+	MOVE.W	#0,D0
+	BSR.W	__DITHER_PLANE		; WITH DITHERING
 	; #### CPU INTENSIVE TASKS BEFORE STARTING MUSIC
 
 	; #### Point LOGO sprites
@@ -156,7 +147,7 @@ MainLoop:
 	JSR	(A4)		; EXECUTE SUBROUTINE BLOCK#
 
 	;*--- main loop end ---*
-	;MOVE.W	#$0002,$DFF180	; show rastertime left down to $12c
+	;MOVE.W	#$0FFF,$DFF180	; show rastertime left down to $12c
 	ENDING_CODE:
 	BTST	#6,$BFE001
 	BNE.S	.DontShowRasterTime
@@ -188,15 +179,10 @@ MainLoop:
 	RTS
 
 ;********** Demo Routines **********
-PokePtrs:				; Generic, poke ptrs into copper list
-	.planes:	
-	MOVE.L	A0,D2
-	SWAP	D2
-	MOVE.W	D2,2(A1)		; high word of address
-	MOVE.W	A0,6(A1)		; low word of address
-	ADDQ.W	#8,A1		; skip two copper instructions
-	ADD.L	D0,A0		; next ptr
-	DBF	D1,.planes
+PokePtrs:				; SUPER SHRINKED REFACTOR
+	MOVE.L	A0,(A0)		; Needs EMPTY plane to write addr
+	MOVE.W	(A0)+,2(A1)	; high word of address
+	MOVE.W	(A0),6(A1)	; low word of address
 	RTS
 
 ClearScreen:			; a1=screen destination address to clear
@@ -220,10 +206,101 @@ VBint:				; Blank template VERTB interrupt
 	movem.l	(sp)+,d0/a6	; restore
 	rte
 
-__CREATESCROLLSPACE:
+__DITHER_PLANE:
+	MOVE.L	A4,A4
+	MOVE.W	#he-1,D4		; QUANTE LINEE
+	MOVE.L	#$AAAAAAAA,D5
+	.outerloop:		; NUOVA RIGA
+	MOVE.W	#(bypl/4)-1,D6	; RESET D6
+	NOT.L	D5
+	.innerloop:		; LOOP KE CICLA LA BITMAP
+	MOVE.L	D5,(A4)+
+	DBRA	D6,.innerloop
+	TST.W	D0
+	BEQ.S	.noWait
+	BSR.W	WaitEOF		; TO SLOW DOWN :)
+	.noWait:
+	DBRA	D4,.outerloop
 	RTS
 
-__POPULATETXTBUFFER:
+__POPULATE_COPPER_MIRROR:
+	.loop:
+	CMP.B	#$FF,D6
+	BNE.S	.notFF
+	CLR.L	D6
+	MOVE.L	#$FFDFFFFE,(A1)+		; allow VPOS>$ff
+	.notFF:
+
+	MOVE.L	#$0001FF00,(A1)
+	MOVE.B	D6,(A1)			; WAIT LINE
+	;MOVE.L	#$00E00000,(A1)		; ACTUAL REGISTERS
+	MOVE.L	#$00E20000,4(A1)		; ACTUAL REGISTERS
+	MOVE.W	A0,6(A1)			; ONLY LOW WORD
+
+	LEA	8(A1),A1			; NEXT GROUP
+	LEA	((bypl*-1),A0),A0		; PREVIOUS LINE
+	ADD.B	#1,D6			; INC. WAITLINE
+	DBRA	D7,.loop
+	RTS
+
+__DEFRAG_COPPER:
+	LEA	COPPER\.COPPERWAITS,A2	; PRELOAD DEST
+	LEA	COPPER\.tempValues,A0	; PRELOAD SOURCE BUFFER
+	MOVE.W	#$2E,D0			; PRELOAD COUNTER START
+
+	BSR.W	__MOVE_WAIT_LINES		; ONLY WAITS
+	MOVE.L	#$FFFFFFFE,(A2)		; COPPER END
+	RTS
+
+__MOVE_WAIT_LINES:
+	LEA	(A0),A1
+	.loop:
+	CMP.W	#$FF00,2(A1)		; IS IT A WAIT?
+	BNE.S	.nextLine			; IF NOT TRY NEXT LINE
+
+	MOVE.B	(A1),D1
+	CMP.B	D0,D1			; WAIT MATCH EXISTS?
+	BNE.S	.nextCounter
+
+	MOVE.L	(A1)+,(A2)+		; COPY WAIT LINE ONCE
+
+	BSR.S	__MOVE_INSTRUCTIONS		; ONLY INSTRUCTIONS NOW
+
+	.nextCounter:
+	ADD.W	#1,D0			; INC COUNTER
+	CMP.W	#$FF+1,D0
+	BEQ.S	.return
+	BRA.S	.loop
+
+	.nextLine:
+	ADD.L	#4,A1
+	CMP.L	#$FFFFFFFE,(A1)		; IS END?
+	BNE.S	.loop
+	.return:
+	RTS
+
+__MOVE_INSTRUCTIONS:
+	CLR.L	D2			; REGISTER FOR BOOL CONDITION
+	LEA	(A0),A3			; PRELOAD SOURCE
+	.loop:
+	CMP.W	#$FF00,2(A3)		; IS IT A WAIT?
+	BNE.S	.skip			; IF NO JUST SKIP
+	MOVE.B	#0,D2			; MOVE CONDITION FALSE
+	MOVE.B	(A3),D1			; IF YES
+	CMP.B	D0,D1			; WAIT MATCH?
+	BNE.S	.nextLine
+	MOVE.B	#1,D2			; MOVE CONDITION TRUE
+	BRA.S	.nextLine
+	.skip:
+
+	TST.B	D2			; IF NOT CONDITION...
+	BEQ.S	.nextLine			; NEXT LINE
+	MOVE.L	(A3),(A2)+		; COPY INSTRUCTION
+
+	.nextLine:
+	ADD.L	#4,A3
+	CMP.L	#$FFFFFFFE,(A3)		; IS END?
+	BNE.S	.loop
 	RTS
 
 __SHIFTTEXT:
@@ -723,7 +800,7 @@ __SCROLL_Y_HALF:
 	;MOVE.B	D5,Y_HALF_DIR
 
 	BSR	WaitBlitter
-	MOVE.W	#%000100111110000,BLTCON0
+	MOVE.W	#%0000100111110000,BLTCON0
 	CMP.B	#1,D5
 	BEQ.S	.goUp
 	MOVE.W	#%0000000000000010,BLTCON1	; BLTCON1 DESC MODE
@@ -816,15 +893,16 @@ __SCROLL_X_PROGR:
 	MOVE.B	X_PROGR_DIR,D5
 	MOVE.W	#10,D2			; FOR LOOP
 	MOVE.B	D2,D3			; FOR SHIFT
+	;ADD.W	X_EASYING2,D3
 	SUB.B	#1,D2
 	MOVE.B	X_PROGR_TYPE,D4
 	MOVE.L	A3,A1
 	MOVE.L	A4,A2
 
-	bsr	WaitBlitter
-	MOVE.L	#$FFFFFFFF,BLTAFWM		; THEY'LL NEVER
-	;MOVE.W	#bypl*he/2-(bypl/2)-1,D6	; OPTIMIZE
-	MOVE.W	#bypl*X_SLICE-(bypl/2)-1,D6	; OPTIMIZE
+	;MOVE.W	#$FFFF,BLTAFWM		; BLTAFWM
+	;MOVE.W	#$FFFF,BLTALWM		; BLTALWM
+
+	MOVE.W	#BYPL*X_SLICE-(BYPL/2)-1,D6	; OPTIMIZE
 	MOVE.W	#bypl*X_SLICE,D7		; OPTIMIZE
 	;SUB.W	D7,D6
 
@@ -832,7 +910,8 @@ __SCROLL_X_PROGR:
 	BNE.S	.blitloop
 	MOVE.B	#1,D3
 	.blitLoop:
-	;MOVE.W	X_PROGR_SHIFT,D3		; TO SPEED UP
+	MOVEQ	#-1,D0			; $ffffffff for FWM/LWM
+	;LSR.W	D3,D0			; add x number of zeroed bits to LOW word (LWM)
 	MOVE.L	A1,A3
 	MOVE.L	A2,A4
 	MOVE.W	#%0000100111110000,D1
@@ -840,6 +919,7 @@ __SCROLL_X_PROGR:
 	MOVE.B	D3,D1
 	ROR.W	#4,D1
 	bsr	WaitBlitter
+	MOVE.L	D0,BLTAFWM		; FWM, LWM
 	MOVE.W	D1,BLTCON0		; BLTCON0
 	MOVE.W	#%0000000000000000,BLTCON1	; BLTCON1 BIT 12 DESC MODE
 
@@ -855,7 +935,6 @@ __SCROLL_X_PROGR:
 	MOVE.L	A3,BLTAPTH		; BLTAPT
 	MOVE.L	A4,BLTDPTH
 	MOVE.W	#X_SLICE*64+wi/2/16,BLTSIZE	; BLTSIZE
-
 	ADD.W	D7,A1
 	ADD.W	D7,A2
 	ADD.B	D4,D3			; CAN BE 1 OR -1
@@ -872,7 +951,7 @@ __Y_LFO_EASYING:
 	MOVE.W	D0,Y_EASYING_INDX
 
 	TST.W	D0
-	BEQ.S	__X_LFO_EASYING
+	BEQ.S	__X_LFO_EASYING2
 	RTS
 
 __X_LFO_EASYING:
@@ -894,12 +973,18 @@ __X_LFO_EASYING2:
 	AND.W	#$7E,D0
 	MOVE.W	D0,X_EASYING2_INDX
 
-	;MOVE.W	Y_EASYING_INDX,D0
 	TST.W	D0
 	BNE.S	.notSameIndex
+	SUB.W	#1,X_CYCLES_COUNTER
+	TST.W	X_CYCLES_COUNTER
+	BNE.S	.notSameIndex
+	MOVE.W	#6,X_CYCLES_COUNTER	; RESET
 	MOVE.B	X_PROGR_TYPE,D5	; INVERT
-	;NEG.B	D5
+	NEG.B	D5
 	MOVE.B	D5,X_PROGR_TYPE
+	MOVE.B	X_PROGR_DIR,D5	; INVERT
+	NEG.B	D5
+	MOVE.B	D5,X_PROGR_DIR
 	;MOVE.W	#$0FF2,$DFF180	; show rastertime left down to $12c
 	.notSameIndex:
 	RTS
@@ -1032,21 +1117,21 @@ __BLOCK_0000:
 
 	BSR.W	__Y_LFO_EASYING
 
-	;## DRAW GLITCH ##
+	;## HORIZ TEXTURE ##############
 	MOVE.W	#16*64+wi/16,BLIT_SIZE
 	MOVE.L	#0,BLIT_A_MOD
 	;MOVE.W	#0,BLIT_D_MOD
-
-	;## VERTICAL GLITCH ###########
-	MOVE.L	#$10000,BLIT_A_MOD
-	LEA	BGPLANE0,A4
-	ADD.L	#bypl/2-2,A4
-	;BSR.W	__BLIT_GLITCH_SLICE
-	;## VERTICAL GLITCH ###########
-
 	LEA	BLEEDBOTTOM,A4
 	ADD.L	#bypl*16,A4
 	BSR.W	__BLIT_GLITCH_BAND
+	;## HORIZ TEXTURE ##############
+
+	;## VERTICAL TEXTURE ###########
+	MOVE.L	#$10000,BLIT_A_MOD
+	LEA	BGPLANE0,A4
+	ADD.L	#bypl/2-2,A4
+	BSR.W	__BLIT_GLITCH_SLICE
+	;## VERTICAL TEXTURE ###########
 
 	MOVE.B	#-1,Y_HALF_DIR
 	LEA	BGPLANE0,A3
@@ -1083,6 +1168,7 @@ __BLOCK_END:
 TIMELINE:		DC.L __BLOCK_0000
 		DC.L __BLOCK_END
 
+BPL_PTR_BUF:	DC.L 0
 AUDIOCHLEVEL0NRM:	DC.W 0
 AUDIOCHLEVEL0:	DC.W 0
 AUDIOCHLEVEL1:	DC.W 0
@@ -1115,7 +1201,7 @@ FRAMESINDEX:	DC.W 4
 KICKSTART_ADDR:	DC.L $F80000
 GLITCHRESET:	DC.L X_TEXTURE_MIRROR
 GLITCHDATA:	DC.L X_TEXTURE_MIRROR+bypl*80
-GLITCHDATA2:	DC.L X_TEXTURE_MIRROR+18
+GLITCHDATA2:	DC.L X_TEXTURE_MIRROR+bypl*120+18
 V_SHIFT_FACT:	DC.L (bypl*2)*-1
 V_SCROLL_INDEX:	DC.W 0
 BLIT_Y_MASK:	DC.W $FFFF
@@ -1124,6 +1210,7 @@ BLIT_A_MOD:	DC.W 0
 BLIT_D_MOD:	DC.W 0
 BLIT_SIZE:	DC.W 2*64+wi/2/16
 
+X_CYCLES_COUNTER:	DC.W 15
 X_1_4_DIR:	DC.B -1	; -1=LEFT 1=RIGHT
 Y_1_4_DIR:	DC.B -1	; -1=LEFT 1=RIGHT
 X_1_4_SHIFT:	DC.W 3
@@ -1141,36 +1228,26 @@ X_PROGR_SHIFT:	DC.W 1
 
 Y_EASYING_INDX:	DC.W 48
 Y_EASYING_TBL:	DC.W $2,$2,$2,$2,$2,$2,$2,$2,$2,$3,$3,$2,$3,$3,$3,$3,$3,$3,$4,$4,$4,$4,$4,$4,$4,$5,$5,$5,$5,$5,$5,$6
-		DC.W $6,$6,$6,$6,$7,$6,$5,$5,$5,$4,$4,$4,$4,$4,$4,$3,$3,$3,$3,$3,$3,$3,$2,$3,$3,$2,$2,$2,$2,$2,$2,$2
+		DC.W $6,$6,$7,$8,$8,$9,$8,$7,$7,$6,$5,$4,$3,$4,$3,$3,$3,$3,$3,$3,$2,$3,$2,$3,$3,$2,$2,$2,$2,$2,$2,$1
 Y_EASYING:	DC.W 1
 
 X_EASYING_INDX:	DC.W 60
-X_EASYING_TBL:	DC.W $1,$1,$1,$2,$2,$2,$2,$3,$3,$3,$3,$4,$4,$4,$4,$5,$5,$5,$5,$6,$6,$7,$6,$7,$6,$6,$5,$5,$5,$5,$4,$4
+X_EASYING_TBL:	DC.W $1,$2,$1,$2,$2,$2,$2,$3,$3,$3,$3,$4,$4,$4,$4,$5,$5,$5,$5,$6,$6,$7,$6,$7,$6,$6,$5,$5,$5,$5,$4,$4
 		DC.W $3,$4,$3,$3,$3,$3,$3,$2,$2,$2,$2,$2,$2,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
 X_EASYING:	DC.W 1
 
-X_EASYING2_INDX:	DC.W 18
-X_EASYING2_TBL:	DC.W 1,2,1,2,1,2,3,2,3,2,3,4,3,4,3,4,5,4,5,6,5,6,7,6,7,8,7,8,9,8,8,7,6
-		DC.W 7,6,5,6,5,4,4,3,2,3,2,3,2,1,2,1,2,1,2,1,2,1,2,1,2,1,2,1,2,1,2,1,2
+X_EASYING2_INDX:	DC.W 4
+X_EASYING2_TBL:	DC.W $2,$1,$2,$1,$2,$3,$2,$3,$2,$3,$4,$3,$4,$3,$4,$5,$4,$5,$6,$5,$6,$7,$6,$7,$8,$7,$8,$9,$8,$8,$7,$6
+		DC.W $7,$6,$5,$6,$5,$4,$4,$3,$2,$3,$2,$3,$2,$1,$2,$1,$2,$1,$2,$1,$2,$1,$2,$1,$2,$1,$2,$1,$2,$1,$2,$1
 X_EASYING2:	DC.W 1
-
-COPCOL_REGISTER:	DC.L 0
-COPCOL_VALUE:	DC.W 0
-COPCOL_INDEX:	DC.W 0
-COPCOL_ADDER:	DC.W $0100
-JOYFIRE_STATUS:	DC.W 0
-JOYDIR_STATUS:	DC.W 0
 
 	;*******************************************************************************
 	SECTION	ChipData,DATA_C	;declared data that must be in chipmem
 	;*******************************************************************************
 
-BPLxMOD_INDEX:	DC.W 0
-BPLxMOD_TABLE:	DC.W 1,3,4,1,12,5,4,7,1,4,3,1,0,2,6,10,7,3,2,1,5,4,1,8,7,6,5,1,8,0,1,8,0,3,1,7,17,4,30,3,6,1
-
 SPRITES:		INCLUDE "sprite_KONEY.s"
 PATTERN:		INCBIN "pattern_gear2.raw"
-DITHER:		INCBIN "dithermirrorbg.raw"
+DITHER:		INCBIN "testpic320256.raw"
 MODULE:		INCBIN "CrippledCyborgV7.P61"	; code $1009307
 _MED_MODULE:
 
@@ -1195,7 +1272,7 @@ COPPER:
 	DC.W $102,0	; SCROLL REGISTER (AND PLAYFIELD PRI)
 
 	.Palette:
-	DC.W $0180,$0001,$0182,$0F05,$0184,$0232,$0186,$0333
+	DC.W $0180,$0002,$0182,$0F05,$0184,$0002,$0186,$0003
 	DC.W $0188,$0667,$018A,$0333,$018C,$0667,$018E,$0777
 	DC.W $0190,$0888,$0192,$0888,$0194,$0999,$0196,$0AAA
 	DC.W $0198,$0BBB,$019A,$0CCC,$019C,$0DDD,$019E,$0FFF
@@ -1235,32 +1312,49 @@ COPPER:
 	.LOGOCOL3:
 	DC.W $000		; COLOR4-5
 
-	;DC.W $3801,$FF00
-	;DC.W $0180,$0FFF
-	;DC.W $3901,$FF00
-	;DC.W $0180,$000F
-
 	.COPPERWAITS:
+	;DC.W $6401,$FF01	; BUFFER FOR DEFRAG
+	DS.W 2
+
+	.tempValues:
 	IFNE	COP_Y_MIRROR
 	.BplPtrsWaits:
 	DS.W 127*4+2	; 4 word * lines + 2 VPOS>$ff
 	;DC.W 0,0		; allow VPOS>$ff
 	ENDC
 
-	;DC.W $002D,$FFFE
-	;DC.W $F102,$A68E
-	;DC.W $FE07,$FFFE
-	;DC.W $F102,$1F83
+	DC.W $A001,$FF00
+	DC.W $0180,$0004
+	DC.W $A201,$FF00
+	DC.W $0180,$0006
+	DC.W $A401,$FF00
+	DC.W $0180,$0008
+	DC.W $A601,$FF00
+	DC.W $0180,$000A
+	DC.W $A801,$FF00
+	DC.W $0180,$000C
+	DC.W $AA01,$FF00
+	DC.W $0180,$000D
+	DC.W $AC01,$FF00
+	DC.W $0180,$000F
 
-	;DC.W $FE07,$FFFE
-	;DC.W $0180,$0FFF
-	;DC.W $FF07,$FFFE
-	;DC.W $0180,$0011	; SCROLLAREA BG COLOR
-	;DC.W $0182,$0AAA	; SCROLLING TEXT WHITE ON
-
-	;DC.W $FFDF,$FFFE	; allow VPOS>$ff
+	DC.W $A201,$FF00
+	DC.W $0182,$0404
+	DC.W $A401,$FF00
+	DC.W $0182,$0606
+	DC.W $A601,$FF00
+	DC.W $0182,$0808
+	DC.W $A801,$FF00
+	DC.W $0182,$0A0A
+	DC.W $AA01,$FF00
+	DC.W $0182,$0C0C
+	DC.W $AC01,$FF00
+	DC.W $0182,$0D0D
+	DC.W $AE01,$FF00
+	DC.W $0182,$0F0F
 
 	DC.W $FFFF,$FFFE	; magic value to end copperlist
+
 _COPPER:
 
 ;*******************************************************************************
@@ -1271,8 +1365,7 @@ BLEEDTOP:		DS.B 16*bypl
 BGPLANE0:		DS.B he/2*bypl	; DEFINE AN EMPTY AREA FOR THE MARGIN WORD
 BLEEDBOTTOM:	DS.B 16*bypl
 _BLEEDBOTTOM:
-
 X_TEXTURE_MIRROR:	DS.B he*bypl*4	; mirrored texture
 _X_TEXTURE_MIRROR:
-
+DITHERPLANE:	DS.B he*bypl	; 1 plane
 END
