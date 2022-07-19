@@ -34,7 +34,7 @@ Demo:			;a4=VBR, a6=Custom Registers Base addr
 	MOVE.L	#VBint,$6C(A4)
 	MOVE.W	#%1110000000100000,INTENA
 	;** SOMETHING INSIDE HERE IS NEEDED TO MAKE MOD PLAY! **
-	MOVE.W	#%1000011111100000,DMACON
+	MOVE.W	#%1000001111100000,DMACON
 	;*--- clear screens ---*
 	;LEA	SCREEN1,A1
 	;BSR.W	ClearScreen
@@ -89,14 +89,16 @@ Demo:			;a4=VBR, a6=Custom Registers Base addr
 	LEA	COPWAITSSRC\.gradients,A2	; PRELOAD DEST
 	MOVE.W	#$2C,D0			; PRELOAD H STARTPOS
 	MOVE.W	#$0180,D1			; PRELOAD REGISTER#
-	MOVE.L	#$00010207,D2		; START | END COLOR
+	MOVE.L	#$00010009,D2		; START | END COLOR
 	MOVE.W	#4,D3			; STEP IN PIXELS
-	;BSR.W	__COPPER_CREATE_GRADIENT
+	BSR.W	__COPPER_CREATE_GRADIENT
 
-	MOVE.W	#$1E,D0			; PRELOAD H STARTPOS
-	MOVE.L	#$02070001,D2		; START | END COLOR
+	LEA	4(A2),A2
+	LEA	16(A2),A2
+	MOVE.W	#$00,D0			; PRELOAD H STARTPOS
+	MOVE.L	#$00090001,D2		; START | END COLOR
 	MOVE.W	#4,D3			; STEP IN PIXELS
-	;BSR.W	__COPPER_CREATE_GRADIENT
+	BSR.W	__COPPER_CREATE_GRADIENT
 	;
 	;MOVE.W	#$2C,D0			; PRELOAD H STARTPOS
 	;MOVE.W	#$0182,D1			; PRELOAD REGISTER#
@@ -144,8 +146,8 @@ Demo:			;a4=VBR, a6=Custom Registers Base addr
 	MOVE.L	#COPPER,COP1LC
 ;********************  main loop  ********************
 MainLoop:
-	MOVE.W	#$12C,D0		; No buffering, so wait until raster
-	BSR.W	WaitRaster	; is below the Display Window.
+	;MOVE.W	#$12C,D0		; No buffering, so wait until raster
+	;BSR.W	WaitRaster	;is below the Display Window.
 	;*--- swap buffers ---*
 	;movem.l	DrawBuffer(PC),a2-a3
 	;exg	a2,a3
@@ -171,6 +173,8 @@ MainLoop:
 	MOVE.L	(A3,D5),A4	; THANKS HEDGEHOG!!
 	JSR	(A4)		; EXECUTE SUBROUTINE BLOCK#
 
+	BSR.S	WaitRasterCopper	; is below the Display Window.
+
 	;TST.B	FRAME_STROBE
 	;BNE.W	.oddFrame
 	;MOVE.B	#1,FRAME_STROBE
@@ -181,6 +185,7 @@ MainLoop:
 	;MOVE.W	#1,P61_LAST_POS
 	;.evenFrame:
 
+	;BSR.W	WaitEOF		; is below the Display Window.
 	;MOVE.W	#$0FFF,$DFF180	; show rastertime left down to $12c
 
 	;*--- main loop end ---*
@@ -226,6 +231,14 @@ MainLoop:
 	RTS
 
 ;********** Demo Routines **********
+WaitRasterCopper:
+	;MOVE.W	#$0FF0,$DFF180		; show rastertime left down to $12c
+	BTST	#4,INTENAR+1
+	BNE.S	WaitRasterCopper
+	;MOVE.W	#$0000,$DFF180		; show rastertime left down to $12c
+	MOVE.W	#$8010,INTENA
+	RTS
+
 PokePtrs:				; SUPER SHRINKED REFACTOR
 	MOVE.L	A0,(A0)		; Needs EMPTY plane to write addr
 	MOVE.W	(A0)+,2(A1)	; high word of address
@@ -914,7 +927,7 @@ __SCROLL_X_1_4_BIS:
 
 	MOVE.B	D4,D1
 	ROR.W	#4,D1
-	bsr	WaitBlitter
+	BSR	WaitBlitterNasty
 
 	MOVE.L	#$FFFFFFFF,BLTAFWM		; THEY'LL NEVER
 	MOVE.W	D1,BLTCON0		; BLTCON0
@@ -946,32 +959,23 @@ __SCROLL_Y_HALF:
 	;MOVE.W	(A0,D1.W),D1
 
 	; ## MAIN BLIT ####
-	MOVE.B	Y_HALF_DIR,D5
+	;MOVE.B	Y_HALF_DIR,D5
 	;NEG.B	D5
 	;MOVE.B	D5,Y_HALF_DIR
 
-	BSR	WaitBlitter
-	MOVE.W	#%0000100111110000,BLTCON0
-	CMP.B	#1,D5
-	BEQ.S	.goUp
-	MOVE.W	#%0000000000000010,BLTCON1	; BLTCON1 DESC MODE
-	SUB.L	D1,A3			; POSITION Y
-	MOVE.W	#bypl*(he/2+16)-1,D6
-	ADD.W	D6,A3
-	ADD.W	D6,A4
-	BRA.S	.goBlit
-	.goUp:
-	MOVE.W	#%0000000000000000,BLTCON1	; BLTCON1
 	ADD.L	D1,A3			; POSITION Y
-	.goBlit:
+	BSR	WaitBlitterNasty
 
 	MOVE.L	#$FFFFFFFF,BLTAFWM		; THEY'LL NEVER
+	MOVE.W	#%0000100111110000,BLTCON0
+	MOVE.W	#%0000000000000000,BLTCON1	; BLTCON1
+
 	MOVE.W	BLIT_A_MOD,BLTAMOD		; BLTAMOD
 	MOVE.W	BLIT_D_MOD,BLTDMOD		; BLTDMOD
 
 	MOVE.L	A3,BLTAPTH		; BLTAPT SRC
 	MOVE.L	A4,BLTDPTH		; DEST
-	CLR.W	$100			; DEBUG | w 0 100 2
+	;CLR.W	$100			; DEBUG | w 0 100 2
 	MOVE.W	BLIT_SIZE,BLTSIZE		; BLTSIZE
 	; ## MAIN BLIT ####
 	RTS
@@ -1082,7 +1086,7 @@ __SCROLL_X_PROGR:
 	ROL.W	#4,D1
 	MOVE.B	D3,D1
 	ROR.W	#4,D1
-	bsr	WaitBlitter
+	BSR	WaitBlitterNasty
 	MOVE.L	#$FFFFFFFF,BLTAFWM		; THEY'LL NEVER
 	MOVE.L	D0,BLTAFWM		; FWM, LWM
 	MOVE.W	D1,BLTCON0		; BLTCON0
@@ -1117,7 +1121,6 @@ __SCROLL_COMBINED:
 	MOVE.W	#bypl-Y_SLICE/16*2,BLIT_D_MOD
 	MOVE.W	X_EASYING,X_1_4_SHIFT
 	SUB.W	#2,X_1_4_SHIFT
-	MOVE.B	#1,Y_HALF_DIR
 	.loop:
 	MOVE.W	#(he/2+16)*64+(Y_SLICE/16),BLIT_SIZE
 	BSR.W	__SCROLL_Y_HALF
@@ -1221,9 +1224,9 @@ __BLOCK_0:
 	MOVE.W	#(X_SLICE)*bypl,D3
 	SWAP	D3
 	MOVE.W	#(Y_SLICE)/16*2,D3
-	NEG.W	D3
 
 	; ## RIGHT ##
+	NEG.W	D3
 	LEA	BGPLANE0,A3
 	LEA	36(A3),A3
 	MOVE.L	A3,A4
@@ -1247,7 +1250,7 @@ __BLOCK_0:
 
 	; ## LEFT ##
 	NEG.W	D3
-	LEA	BGPLANE0,A3
+	LEA	BGPLANE2,A3
 	MOVE.L	A3,A4
 	MOVE.W	Y_EASYING,Y_HALF_SHIFT
 	MOVE.B	#-1,X_1_4_DIR
@@ -1259,7 +1262,7 @@ __BLOCK_0:
 	MOVE.B	#-1,X_1_4_DIR
 	BSR.W	__SCROLL_COMBINED
 
-	LEA	BGPLANE2,A3
+	LEA	BGPLANE0,A3
 	MOVE.L	A3,A4
 	MOVE.W	Y_EASYING,Y_HALF_SHIFT
 	MOVE.B	#-1,X_1_4_DIR
@@ -1549,7 +1552,7 @@ X_PROGR_TYPE:	DC.B 1
 Y_PROGR_TYPE:	DC.B 1		; SOLO POSITIVO
 X_PROGR_SHIFT:	DC.W 1
 
-KICKSTART_ADDR:	DC.L $F80000	; POINTERS TO BITMAPS
+KICKSTART_ADDR:	DC.L $F80000			; POINTERS TO BITMAPS
 TEXTURERESET1:	DC.L X_TEXTURE_MIRROR+TEXTURE_H*bypl
 		DC.L X_TEXTURE_MIRROR+TEXTURE_H*bypl
 TEXTURERESET2:	DC.L X_TEXTURE_MIRROR+TEXTURE_H*bwid
@@ -1587,7 +1590,7 @@ X_EASYING2:	DC.W 1
 SPRITES:		INCLUDE "sprite_KONEY.s"
 PATTERN:		INCBIN "NewPattern_64x64.raw"
 TEXTURE_V:	INCBIN "ThinPurple2_64x640x2.raw"
-TEXTURE:		INCBIN "TEST_160x640x3.raw"	;"PurpleT_160x640x3.raw"	;
+TEXTURE:		INCBIN "PurpleT_160x640x3.raw"	;"TEST_160x640x3.raw"	
 
 FONT:		DC.L 0,0		; SPACE CHAR
 		INCBIN "digital_font.raw",0
@@ -1610,7 +1613,7 @@ COPPER:
 	DC.W $102,0	; SCROLL REGISTER (AND PLAYFIELD PRI)
 
 	.Palette:
-	DC.W $0180,$0207,$0182,$0F0C,$0184,$0C0B,$0186,$0A0B
+	DC.W $0180,$0001,$0182,$0F0C,$0184,$0C0B,$0186,$0A0B
 	DC.W $0188,$080A,$018A,$070A,$018C,$0609,$018E,$0408
 	DC.W $0190,$0888,$0192,$0888,$0194,$0999,$0196,$0AAA
 	DC.W $0198,$0BBB,$019A,$0CCC,$019C,$0DDD,$019E,$0FFF
@@ -1649,9 +1652,10 @@ COPPER:
 
 	.COPPERWAITS:
 	IFNE	COP_DEFRAG
-	DS.W 16*4*2	; GRADIENTS
+	DS.W 9*2*2	; GRADIENTS
+	DS.W 9*2*2	; GRADIENTS
 	;DS.W he/2*bpls*4	; 4 word * lines + 2 VPOS>$ff
-	DS.W 2		; 4 word * lines + 2 VPOS>$ff
+	DS.W 2+8		; 4 word * lines + 2 VPOS>$ff
 	ENDC
 _COPPER:
 
@@ -1659,15 +1663,22 @@ COPWAITSSRC:
 	IFNE	COP_Y_MIRROR
 	.BplPtrsWaits:
 	DS.W he/2*bpls*4	; 4 word * lines + 2 VPOS>$ff
-	DS.W 2		; 4 word * lines + 2 VPOS>$ff
+	DS.W 2+8		; 4 word * lines + 2 VPOS>$ff
 	ENDC
+	.gradients:
+	DS.W 9*2*2	; ROOM FOR GRADIENT 1
 
 	DC.W $AE01,$FF00
 	DC.W $0108,-80	; FROM HALF SCREEN NEGATIVE MODULOS
+	DC.W $AE01,$FF00
 	DC.W $010A,-80	; TO SHOW THE SAME IMG H-FLIPPED
+	
+	DC.W $FFDF,$FFFE	; allow VPOS>$ff
+	DS.W 9*2*2	; ROOM FOR GRADIENT 2
 
-	.gradients:
-	DS.W 16*4*2
+	DC.W $3501,$FF00	; ## RASTER END ## #$12C?
+	DC.W $009A,$0010	; CLEAR RASTER BUSY FLAG
+
 	DC.W $FFFF,$FFFE	; magic value to end copperlist
 
 ;*******************************************************************************

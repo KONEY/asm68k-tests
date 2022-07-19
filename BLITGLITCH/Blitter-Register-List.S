@@ -1,9 +1,9 @@
 ;********** relevant blitter registers **********
 ;base reg $dff000
 
-BLTDDAT	= 0	;result of the last word. used for bob collision detection and 
+BLTDDAT	= $DFF000	;result of the last word. used for bob collision detection and 
 		;MFM decoding
-DMACONR	= 2	;bit 14=blitter busy flag
+DMACONR	= $DFF002	;bit 14=blitter busy flag
 
 ;blitter operation setup
 BLTCON0	= $DFF040
@@ -29,23 +29,27 @@ BLTSIZV	= $DFF05C
 BLTSIZH	= $DFF05E
 
 ;modulos
-BLTCMOD	= $DFF060
+BLTCMOD	= $DFF060	
 BLTBMOD	= $DFF062
 BLTAMOD	= $DFF064
 BLTDMOD	= $DFF066
 
 ;data to replace sources
-BLTCDAT	= $DFF070
+BLTCDAT	= $DFF070	
 BLTBDAT	= $DFF072
 BLTADAT	= $DFF074
 
+BPLCON0	= $DFF100
 BPLCON1	= $DFF102
+BPLCON2	= $DFF104
 
 ;bit 6: enable blitter DMA - bit 10: give blitter priority over the CPU
 DMACON	= $DFF096
 
 ;Interrupt enable bits (clear or set bits)
 INTENA	= $DFF09A
+INTENAR	= $DFF01C
+INTREQ	= $DFF09C
 
 VPOSR	= $DFF004
 VPOSW	= $DFF02A
