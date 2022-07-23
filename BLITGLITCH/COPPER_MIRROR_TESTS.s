@@ -1677,7 +1677,7 @@ COPWAITSSRC:
 	DC.W $FFDF,$FFFE	; allow VPOS>$ff
 	;DS.W 9*2*2	; ROOM FOR GRADIENT 2
 
-	DC.W $3501,$FF00	; ## RASTER END ## #$12C?
+	DC.W $2C01,$FF00	; ## RASTER END ## #$12C?
 	DC.W $009A,$0010	; CLEAR RASTER BUSY FLAG
 
 	DC.W $FFFF,$FFFE	; magic value to end copperlist
