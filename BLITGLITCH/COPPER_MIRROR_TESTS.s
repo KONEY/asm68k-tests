@@ -1590,7 +1590,8 @@ X_EASYING2:	DC.W 1
 SPRITES:		INCLUDE "sprite_KONEY.s"
 PATTERN:		INCBIN "NewPattern_64x64.raw"
 TEXTURE_V:	INCBIN "ThinPurple2_64x640x2.raw"
-TEXTURE:		INCBIN "TEST_160x640x3.raw"	;"PurpleT_160x640x3.raw"
+TEXTURE:		INCBIN "TEST_160x640x3.raw"	
+		INCBIN ;"PurpleT_160x640x3.raw"
 
 FONT:		DC.L 0,0		; SPACE CHAR
 		INCBIN "digital_font.raw",0
@@ -1685,15 +1686,17 @@ COPWAITSSRC:
 	SECTION ChipBuffers,BSS_C	;BSS doesn't count toward exe size
 ;*******************************************************************************
 
+X_TEXTURE_MIRROR:	DS.B TEXTURE_H*bwid	; mirrored texture
+DITHERPLANE:	DS.B TEXTURE_H*bypl	; 1 plane
+
 BLEEDTOP0:	DS.B 16*bypl*2
 BGPLANE0:		DS.B he/2*bypl
 BLEEDBOTTOM0:	DS.B 16*bypl*2
-BLEEDTOP1:	DS.B 16*bypl*2
+;BLEEDTOP1:	DS.B 16*bypl*2
 BGPLANE1:		DS.B he/2*bypl
 BLEEDBOTTOM1:	DS.B 16*bypl*2
-BLEEDTOP2:	DS.B 16*bypl*2
+;BLEEDTOP2:	DS.B 16*bypl*2
 BGPLANE2:		DS.B he/2*bypl
 BLEEDBOTTOM2:	DS.B 16*bypl*2
-X_TEXTURE_MIRROR:	DS.B TEXTURE_H*bwid	; mirrored texture
-DITHERPLANE:	DS.B TEXTURE_H*bypl	; 1 plane
+
 END
